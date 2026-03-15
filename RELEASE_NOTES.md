@@ -23,6 +23,7 @@ An OpenClaw enhancement plugin that adds persistent memory, context compression,
 - tool output compaction with saved-token reporting
 - operator CLI for doctor, status, memory, profile, session, and config inspection
 - plugin inspect routes inside OpenClaw
+- memory hygiene guardrails that reject metadata noise and keep internal scaffold out of normal answers
 
 ### Install
 

@@ -114,6 +114,19 @@ function extractSection(text: string, section: string): string {
   return regex.exec(text)?.[1]?.trim() ?? tagRegex.exec(text)?.[1]?.trim() ?? "";
 }
 
+function extractPreferenceHints(text: string): string[] {
+  return Array.from(
+    new Set(
+      text
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .filter((line) => /User prefers|User likes|User dislikes|Chinese responses|concise terminal-first|execution-oriented|structured updates/i.test(line))
+        .map((line) => line.replace(/^[-•]\s*/, "").trim()),
+    ),
+  ).slice(0, 3);
+}
+
 function buildSseResponse(events: unknown[]): Response {
   const sse = `${events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join("")}data: [DONE]\n\n`;
   const encoder = new TextEncoder();
@@ -219,6 +232,7 @@ async function buildResponse(params: OpenAIResponsesParams): Promise<Response> {
       ?.replace(/\[(?:preference|semantic|session_state|episodic)\]\s*/gi, "")
       ?.replace(/\s*\((?:score|importance|why)[^)]*\)/gi, "")
       ?.trim();
+    const fallbackMemoryLine = extractPreferenceHints(combinedText)[0] ?? "";
     const taskLine = taskSection
       .split(/\r?\n/)
       .find((line) => line.trim() && !/No active task/i.test(line))
@@ -227,7 +241,7 @@ async function buildResponse(params: OpenAIResponsesParams): Promise<Response> {
     return buildTextSse(
       sanitizeAssistantOutput(
       [
-        memoryLine ? `我记得：${memoryLine}` : "我暂时没有检索到稳定记忆。",
+        memoryLine || fallbackMemoryLine ? `我记得：${memoryLine || fallbackMemoryLine}` : "我暂时没有检索到稳定记忆。",
         taskLine ? `当前任务状态：${taskLine}` : "",
       ]
         .filter(Boolean)

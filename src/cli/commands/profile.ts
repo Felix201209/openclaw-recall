@@ -26,7 +26,26 @@ export function registerProfileCommands(program: Command): void {
       .argument("<runId>", "Run id")
       .action(async function action(runId: string) {
         const { container } = await createCliContainer();
-        printOutput(this, await container.profileStore.get(runId));
+        const profile = await container.profileStore.get(runId);
+        printOutput(
+          this,
+          profile
+            ? {
+                ...profile,
+                summary: {
+                  prompt: `${profile.promptTokens} (${profile.promptTokensSource})`,
+                  memory: {
+                    injected: profile.memoryInjected,
+                    candidates: profile.memoryCandidates,
+                    written: profile.memoryWritten,
+                    retrievals: profile.retrievalCount,
+                  },
+                  toolCompaction: `${profile.toolTokensSaved} (${profile.toolTokensSavedSource})`,
+                  compression: `${profile.compressionSavings} (${profile.compressionSavingsSource})`,
+                },
+              }
+            : null,
+        );
       }),
   );
 }

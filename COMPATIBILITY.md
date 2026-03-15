@@ -24,13 +24,13 @@ This matrix applies to `1.0.0`.
   - prompt token usage can be `exact` when OpenClaw or the provider returns usage metadata
   - verified in embedded integration, source install, and tarball install flows
 
-### Supported but not fully smoke-tested in 1.0.0
+### Supported with partial verification
 
 - OpenAI-compatible embeddings via `embedding.provider=openai`
-  - configuration is supported
-  - automated smoke currently covers local hashed embeddings by default instead
+  - configuration, doctor, and config validation are supported
+  - automated smoke currently covers local hashed embeddings by default instead of a live embedding API
 
-### Not yet 1.0.0-verified
+### Not yet release-verified
 
 - non-OpenAI runtime provider paths
   - no claim of full smoke coverage in 1.0.0
@@ -61,6 +61,7 @@ This matrix applies to `1.0.0`.
 - `npm run build`
 - `npm run test:unit`
 - `npm run test:integration`
+- `npm run test:install`
 - `npm run smoke`
 - `npm run verify`
 - `npm publish --dry-run`

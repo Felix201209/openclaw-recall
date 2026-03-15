@@ -8,6 +8,9 @@ import type { DoctorReport } from "../../types/domain.js";
 import { listPluginEnvOverrides } from "../../config/loader.js";
 import { validateResolvedConfig } from "../../config/validation.js";
 import { resolvePluginPaths } from "../../storage/paths.js";
+import { readJsonFile } from "../../shared/fileStore.js";
+import { explainSuppression } from "../../memory/MemoryRanker.js";
+import type { PruneReport } from "../../types/domain.js";
 
 export function registerDoctorCommands(program: Command): void {
   addJsonFlag(
@@ -40,6 +43,8 @@ export function registerDoctorCommands(program: Command): void {
       const writable = await isWritable(path.dirname(container.database.path));
       const sqliteHealthy = isSqliteHealthy(container.database);
       const envOverrides = listPluginEnvOverrides();
+      const latestPrune = await readJsonFile<PruneReport | null>(pluginPaths.latestPrunePath, null);
+      const noisyActiveMemories = memories.filter((memory) => explainSuppression(memory).length > 0);
       const promptLayers = Array.isArray(latestProfile?.details?.promptLayers)
         ? (latestProfile?.details?.promptLayers as Array<Record<string, unknown>>)
         : [];
@@ -154,6 +159,21 @@ export function registerDoctorCommands(program: Command): void {
                 : memories.length > 0
                   ? `${memories.length} active memories stored`
                   : "No memory writes recorded yet",
+          },
+          {
+            name: "memory hygiene",
+            status:
+              noisyActiveMemories.length === 0
+                ? "pass"
+                : latestPrune?.dryRun === false && (latestPrune.pruned ?? 0) > 0
+                  ? "warn"
+                  : "warn",
+            detail:
+              noisyActiveMemories.length === 0
+                ? "No active memories currently match suppression rules"
+                : latestPrune
+                  ? `Detected ${noisyActiveMemories.length} active noisy memories; latest prune=${latestPrune.createdAt} (dryRun=${latestPrune.dryRun}, pruned=${latestPrune.pruned})`
+                  : `Detected ${noisyActiveMemories.length} active noisy memories; run \`openclaw-recall memory prune-noise --dry-run\` first`,
           },
           {
             name: "retrieval pipeline",

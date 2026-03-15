@@ -231,6 +231,16 @@ export interface ExportReport {
   sessionId?: string;
 }
 
+export interface PruneReport {
+  pruneId: string;
+  createdAt: string;
+  dryRun: boolean;
+  scanned: number;
+  pruned: number;
+  ids: string[];
+  notes: string[];
+}
+
 export interface PluginRunContext {
   runId: string;
   sessionId: string;

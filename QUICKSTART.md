@@ -65,6 +65,7 @@ OPENCLAW_RECALL_IDENTITY_MODE=local
 openclaw-recall import dry-run
 openclaw-recall import run
 openclaw-recall import status
+openclaw-recall memory prune-noise --dry-run
 ```
 
 This scans common `memories/*.json`, `sessions/*.json`, `*.jsonl`, and local plugin artifacts before you seed a synthetic demo.
@@ -107,8 +108,10 @@ That additionally checks:
 - `openclaw plugins info openclaw-recall` shows `Status: loaded`
 - `openclaw-recall doctor` has no `fail` checks
 - `openclaw-recall status` shows non-zero `memoryCount` and `profileCount` after a demo run
+- `openclaw-recall status` also shows `noisyActiveMemoryCount` and the latest prune/import/export metadata
 - `openclaw-recall import status` shows the last import report
 - `openclaw-recall profile list --json` shows `promptTokensSource: "exact"` on provider paths that return usage
+- `openclaw-recall memory prune-noise --dry-run` shows what would be deactivated before any stored memory changes
 
 ## Backup and recovery
 

@@ -190,6 +190,13 @@ openclaw-recall memory prune-noise
 
 `memory explain`, `memory inspect`, `doctor`, and `status` keep the debug path available without putting those internals in the normal chat response.
 
+`status` also reports:
+
+- `noisyActiveMemoryCount`
+- `lastPrune`
+- `recentImportStats`
+- `lastExportPath`
+
 ## Compatibility
 
 Verified for `1.0.0`:

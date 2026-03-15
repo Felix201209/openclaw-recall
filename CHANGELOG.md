@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- hardened memory quality with stricter write-time rejection for metadata, wrappers, scaffold fragments, and low-value emotional noise
+- strengthened retrieval suppression and ranking so stable user preferences outrank polluted or low-value records
+- added preference/fact supersede coverage for common Chinese/English and concise/detailed preference changes
+- added `memory prune-noise --dry-run` and persisted prune reports for operator workflows
+- extended doctor/status/profile inspect with memory hygiene, latest prune metadata, and clearer runtime summaries
+- tightened docs around verified vs supported paths and clean-output guarantees
+
 ## 1.0.0
 
 - renamed the plugin to `OpenClaw Recall`

@@ -1,5 +1,9 @@
 import { Command } from "commander";
+import crypto from "node:crypto";
 import { explainSuppression } from "../../memory/MemoryRanker.js";
+import { resolvePluginPaths } from "../../storage/paths.js";
+import { writeJsonFile } from "../../shared/fileStore.js";
+import type { PruneReport } from "../../types/domain.js";
 import { addJsonFlag, createCliContainer, printOutput } from "../shared.js";
 
 export function registerMemoryCommands(program: Command): void {
@@ -72,7 +76,20 @@ export function registerMemoryCommands(program: Command): void {
       .option("--dry-run", "Preview which memories would be pruned without changing stored data")
       .action(async function action() {
         const { container } = await createCliContainer();
-        printOutput(this, await container.memoryStore.pruneNoise({ dryRun: this.opts().dryRun === true }));
+        const result = await container.memoryStore.pruneNoise({ dryRun: this.opts().dryRun === true });
+        const report: PruneReport = {
+          pruneId: crypto.randomUUID(),
+          createdAt: new Date().toISOString(),
+          dryRun: result.dryRun,
+          scanned: result.scanned,
+          pruned: result.pruned,
+          ids: result.ids,
+          notes: result.dryRun
+            ? ["Dry-run only; no stored memories were modified."]
+            : ["Suppressed/noisy memories were deactivated rather than deleted."],
+        };
+        await writeJsonFile(resolvePluginPaths().latestPrunePath, report);
+        printOutput(this, report);
       }),
   );
 }
