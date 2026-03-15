@@ -42,6 +42,38 @@ export function resolvePluginConfig(params: {
     enabled: pluginConfig.enabled ?? true,
     storageDir,
     databasePath: path.join(storageDir, "memory.sqlite"),
+    identity: {
+      mode:
+        (readEnv(env, "IDENTITY_MODE")?.trim() as "local" | "reconnect" | "cloud" | undefined) ??
+        pluginConfig.identity?.mode ??
+        defaultPluginConfig.identity.mode,
+      backendType:
+        (readEnv(env, "IDENTITY_BACKEND")?.trim() as "local" | "openai-memory" | "custom" | undefined) ??
+        pluginConfig.identity?.backendType ??
+        defaultPluginConfig.identity.backendType,
+      identityKey:
+        readEnv(env, "IDENTITY_KEY")?.trim() ||
+        pluginConfig.identity?.identityKey,
+      apiKey:
+        readEnv(env, "IDENTITY_API_KEY")?.trim() ||
+        pluginConfig.identity?.apiKey,
+      memorySpaceId:
+        readEnv(env, "MEMORY_SPACE_ID")?.trim() ||
+        pluginConfig.identity?.memorySpaceId,
+      endpoint:
+        readEnv(env, "IDENTITY_ENDPOINT")?.trim() ||
+        pluginConfig.identity?.endpoint,
+      workspaceScope:
+        readEnv(env, "WORKSPACE_SCOPE")?.trim() ||
+        pluginConfig.identity?.workspaceScope,
+      userScope:
+        readEnv(env, "USER_SCOPE")?.trim() ||
+        pluginConfig.identity?.userScope,
+      verifyOnStartup:
+        parseBoolean(readEnv(env, "VERIFY_IDENTITY")) ??
+        pluginConfig.identity?.verifyOnStartup ??
+        defaultPluginConfig.identity.verifyOnStartup,
+    },
     embedding: {
       provider:
         embeddingProvider ??
@@ -139,6 +171,34 @@ export function resolvePluginConfig(params: {
         pluginConfig.inspect?.httpPath ||
         defaultPluginConfig.inspect.httpPath,
     },
+    imports: {
+      enabled:
+        parseBoolean(readEnv(env, "IMPORTS_ENABLED")) ??
+        pluginConfig.imports?.enabled ??
+        defaultPluginConfig.imports.enabled,
+      defaultRoots:
+        parseList(readEnv(env, "IMPORT_ROOTS")) ??
+        pluginConfig.imports?.defaultRoots ??
+        defaultPluginConfig.imports.defaultRoots,
+      maxFiles:
+        parseNumber(readEnv(env, "IMPORT_MAX_FILES")) ??
+        pluginConfig.imports?.maxFiles ??
+        defaultPluginConfig.imports.maxFiles,
+      maxConcurrency:
+        parseNumber(readEnv(env, "IMPORT_MAX_CONCURRENCY")) ??
+        pluginConfig.imports?.maxConcurrency ??
+        defaultPluginConfig.imports.maxConcurrency,
+    },
+    exports: {
+      directory:
+        readEnv(env, "EXPORT_DIRECTORY")?.trim() ||
+        pluginConfig.exports?.directory ||
+        defaultPluginConfig.exports.directory,
+      defaultFormat:
+        (readEnv(env, "EXPORT_FORMAT")?.trim() as "json" | "jsonl" | undefined) ??
+        pluginConfig.exports?.defaultFormat ??
+        defaultPluginConfig.exports.defaultFormat,
+    },
   };
 }
 
@@ -161,6 +221,16 @@ function parseBoolean(value: string | undefined): boolean | undefined {
     return false;
   }
   return undefined;
+}
+
+function parseList(value: string | undefined): string[] | undefined {
+  if (!value?.trim()) {
+    return undefined;
+  }
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 export function listPluginEnvOverrides(env: NodeJS.ProcessEnv = process.env): string[] {

@@ -62,10 +62,29 @@ Legacy `OPENCLAW_MEMORY_PLUGIN_*` variables are still accepted as compatibility 
 Starter entry helpers:
 
 ```bash
-openclaw-recall config init
-openclaw-recall config init --write-openclaw
+openclaw-recall config init --mode local
+openclaw-recall config init --mode local --write-openclaw
+openclaw-recall config init --mode reconnect --identity-key recall_xxx --memory-space space_xxx
 openclaw-recall config validate
 ```
+
+## Identity modes
+
+### `local`
+
+- plugin state lives under the current OpenClaw home
+- best for a single machine or local-first workflow
+
+### `reconnect`
+
+- uses an identity key and/or memory space id
+- intended for reconnecting the same logical memory space on a new machine
+- keep the identity key secret; it is part of your recovery path
+
+### `cloud`
+
+- reserved for deployments where a remote identity-backed memory service exists
+- this release wires config, validation, doctor, and UX for cloud-backed reconnect flows, but backend implementations may vary by deployment
 
 Temporarily disable automatic memory writes without uninstalling the plugin:
 
@@ -105,6 +124,24 @@ openclaw plugins enable openclaw-recall
 openclaw plugins disable openclaw-recall
 openclaw plugins uninstall openclaw-recall
 ```
+
+## Import, export, recovery
+
+```bash
+openclaw-recall import dry-run
+openclaw-recall import run
+openclaw-recall import status
+openclaw-recall export memory
+openclaw-recall export profile
+openclaw-recall export session --session <sessionId>
+```
+
+Recommended sequence:
+
+1. install and validate
+2. import old sessions or memory files
+3. export a backup after the import succeeds
+4. keep the identity key and exports together for recovery
 
 ## Inspect route
 

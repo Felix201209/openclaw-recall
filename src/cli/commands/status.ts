@@ -4,13 +4,19 @@ import { addJsonFlag, createCliContainer, pluginConfigSources, printOutput } fro
 export function registerStatusCommands(program: Command): void {
   addJsonFlag(
     program.command("status").description("Show plugin status").action(async function action() {
-      const { container, resolved, enabled, openclawHome } = await createCliContainer();
+      const { container, resolved, enabled, openclawHome, identity, importService, exportService } =
+        await createCliContainer();
       const memories = await container.memoryStore.listActive();
       const profiles = await container.profileStore.list(5);
       const sessions = await container.eventStore.listSessions(5);
       const latestProfile = profiles[0] ?? null;
+      const latestImport = await importService.status();
+      const latestExport = await exportService.latest();
+      const identityStatus = identity.status();
       printOutput(this, {
         enabled,
+        mode: identityStatus.mode,
+        identity: identityStatus,
         autoWriteEnabled: resolved.memory.autoWrite,
         openclawHome,
         databasePath: container.database.path,
@@ -24,6 +30,16 @@ export function registerStatusCommands(program: Command): void {
         recentRetrievalCount: latestProfile?.retrievalCount ?? 0,
         recentCompressionSavings: latestProfile?.compressionSavings ?? 0,
         recentMemoryWrites: latestProfile?.memoryWritten ?? 0,
+        lastImportTime: latestImport?.completedAt ?? null,
+        recentImportStats: latestImport
+          ? {
+              imported: latestImport.imported,
+              skippedDuplicates: latestImport.skippedDuplicates,
+              rejectedNoise: latestImport.rejectedNoise,
+            }
+          : null,
+        lastExportPath: latestExport?.outputPath ?? null,
+        lastRecoveryWarning: identityStatus.warnings[0] ?? null,
         lastError:
           typeof latestProfile?.details?.error === "string" ? latestProfile.details.error : null,
         latestSession: sessions[0] ?? null,

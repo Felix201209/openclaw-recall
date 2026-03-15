@@ -1,5 +1,6 @@
 import { Command } from "commander";
 import { buildDefaultPluginEntry } from "../../config/defaults.js";
+import { validateResolvedConfig } from "../../config/validation.js";
 import {
   addJsonFlag,
   loadOpenClawPluginConfig,
@@ -7,7 +8,7 @@ import {
   printOutput,
   writeOpenClawConfig,
 } from "../shared.js";
-import type { ConfigValidationIssue, ConfigValidationReport } from "../../types/domain.js";
+import type { ConfigValidationReport } from "../../types/domain.js";
 
 export function registerConfigCommands(program: Command): void {
   const config = addJsonFlag(program.command("config").description("Inspect plugin configuration"));
@@ -16,10 +17,30 @@ export function registerConfigCommands(program: Command): void {
     config
       .command("init")
       .description("Print or write a starter plugin config entry")
+      .option("--mode <mode>", "Identity mode: local | reconnect | cloud", "local")
+      .option("--identity-key <key>", "Persistent identity key for reconnect mode")
+      .option("--memory-space <id>", "Existing memory space id")
+      .option("--api-key <key>", "Remote memory backend API key")
+      .option("--endpoint <url>", "Remote memory backend endpoint")
+      .option("--workspace-scope <name>", "Workspace-scoped identity label")
+      .option("--user-scope <name>", "User-scoped identity label")
       .option("--write-openclaw", "Merge the starter entry into the active openclaw.json")
       .action(async function action() {
         const loaded = await loadOpenClawPluginConfig();
-        const entry = buildDefaultPluginEntry();
+        const options = this.opts();
+        const entry = buildDefaultPluginEntry({
+          identity: {
+            mode: options.mode,
+            backendType: options.mode === "local" ? "local" : "custom",
+            identityKey: options.identityKey,
+            apiKey: options.apiKey,
+            memorySpaceId: options.memorySpace,
+            endpoint: options.endpoint,
+            workspaceScope: options.workspaceScope,
+            userScope: options.userScope,
+            verifyOnStartup: true,
+          },
+        });
 
         if (!this.opts().writeOpenclaw) {
           printOutput(this, {
@@ -28,6 +49,7 @@ export function registerConfigCommands(program: Command): void {
                 "openclaw-recall": entry,
               },
             },
+            nextSteps: nextStepsForMode(options.mode),
           });
           return;
         }
@@ -48,6 +70,7 @@ export function registerConfigCommands(program: Command): void {
           ok: true,
           wrote: loaded.configPath,
           entry: "plugins.entries.openclaw-recall",
+          nextSteps: nextStepsForMode(options.mode),
         });
       }),
   );
@@ -55,6 +78,7 @@ export function registerConfigCommands(program: Command): void {
   addJsonFlag(
     config.command("show").action(async function action() {
       const loaded = await loadOpenClawPluginConfig();
+      const validation = validateResolvedConfig(loaded.resolved, pluginConfigSources());
       printOutput(this, {
         openclawHome: loaded.openclawHome,
         configPath: loaded.configPath,
@@ -62,6 +86,8 @@ export function registerConfigCommands(program: Command): void {
         enabled: loaded.enabled,
         pluginConfig: loaded.pluginConfig ?? {},
         resolved: loaded.resolved,
+        identityMode: loaded.resolved.identity.mode,
+        validation,
         precedence: pluginConfigSources(),
       });
     }),
@@ -70,53 +96,42 @@ export function registerConfigCommands(program: Command): void {
   addJsonFlag(
     config.command("validate").description("Validate plugin configuration").action(async function action() {
       const loaded = await loadOpenClawPluginConfig();
-      const issues: ConfigValidationIssue[] = [];
-
+      const report: ConfigValidationReport = validateResolvedConfig(
+        loaded.resolved,
+        pluginConfigSources(),
+      );
       if (!loaded.configExists) {
-        issues.push({
+        report.issues.unshift({
           field: "openclaw.json",
           severity: "warn",
           message: "OpenClaw config does not exist yet.",
           repairHint: "Run `openclaw plugins install --link /path/to/openclaw-recall` first.",
         });
       }
-
       if (!loaded.enabled) {
-        issues.push({
+        report.issues.unshift({
           field: "plugins.entries.openclaw-recall.enabled",
           severity: "warn",
           message: "Plugin entry is disabled.",
           repairHint: "Run `openclaw plugins enable openclaw-recall`.",
         });
       }
-
-      if (
-        loaded.resolved.embedding.provider === "openai" &&
-        !loaded.resolved.embedding.apiKey?.trim()
-      ) {
-        issues.push({
-          field: "embedding.apiKey",
-          severity: "error",
-          message: "OpenAI-compatible embeddings were selected but no API key was found.",
-          repairHint: "Set OPENCLAW_RECALL_EMBEDDING_API_KEY or plugins.entries.openclaw-recall.config.embedding.apiKey.",
-        });
-      }
-
-      if (!loaded.resolved.inspect.httpPath.startsWith("/plugins/")) {
-        issues.push({
-          field: "inspect.httpPath",
-          severity: "warn",
-          message: "Inspect path does not use the standard /plugins/ prefix.",
-          repairHint: "Use /plugins/openclaw-recall or another plugin-prefixed route.",
-        });
-      }
-
-      const report: ConfigValidationReport = {
-        valid: !issues.some((issue) => issue.severity === "error"),
-        issues,
-        precedence: pluginConfigSources(),
-      };
       printOutput(this, report);
     }),
   );
+}
+
+function nextStepsForMode(mode: string): string[] {
+  if (mode === "local") {
+    return [
+      "Run `openclaw-recall config validate`.",
+      "Import existing sessions with `openclaw-recall import dry-run` then `openclaw-recall import run`.",
+      "Verify with `openclaw-recall doctor` and `openclaw-recall status`.",
+    ];
+  }
+  return [
+    "Run `openclaw-recall config validate` to confirm reconnect fields are complete.",
+    "Reconnects restore the same memory space identity, so keep the identity key secret.",
+    "Import old sessions next with `openclaw-recall import run` so the restored space has useful memory.",
+  ];
 }

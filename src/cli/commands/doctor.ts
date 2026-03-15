@@ -6,15 +6,22 @@ import { Command } from "commander";
 import { addJsonFlag, createCliContainer, printOutput } from "../shared.js";
 import type { DoctorReport } from "../../types/domain.js";
 import { listPluginEnvOverrides } from "../../config/loader.js";
+import { validateResolvedConfig } from "../../config/validation.js";
+import { resolvePluginPaths } from "../../storage/paths.js";
 
 export function registerDoctorCommands(program: Command): void {
   addJsonFlag(
     program.command("doctor").description("Run plugin diagnostics").action(async function action() {
-      const { container, resolved, enabled, configPath, configExists, openclawHome } =
+      const { container, resolved, enabled, configPath, configExists, openclawHome, identity, importService, exportService } =
         await createCliContainer();
       const profiles = await container.profileStore.list(5);
       const sessions = await container.eventStore.listSessions(5);
       const memories = await container.memoryStore.listActive();
+      const identityStatus = identity.status();
+      const validation = validateResolvedConfig(resolved, ["plugins.entries.openclaw-recall.config", "defaults"]);
+      const latestImport = await importService.status();
+      const latestExport = await exportService.latest();
+      const pluginPaths = resolvePluginPaths();
       const latestProfile = profiles[0] ?? null;
       const toolResults = sessions[0]
         ? await container.toolOutputStore.listSession(sessions[0].sessionId, 10)
@@ -73,8 +80,13 @@ export function registerDoctorCommands(program: Command): void {
           },
           {
             name: "config parse",
-            status: "pass",
-            detail: `Resolved plugin config from ${configExists ? configPath : "defaults/env only"}`,
+            status: validation.valid ? "pass" : "warn",
+            detail: `Resolved plugin config from ${configExists ? configPath : "defaults/env only"} (${validation.issues.length} issues)`,
+          },
+          {
+            name: "identity / backend",
+            status: identityStatus.reconnectReady ? "pass" : identityStatus.mode === "local" ? "pass" : "warn",
+            detail: `mode=${identityStatus.mode}, backend=${identityStatus.backendType}, configured=${identityStatus.configured}, reachability=${identityStatus.reachability}`,
           },
           {
             name: "env/config precedence",
@@ -89,6 +101,22 @@ export function registerDoctorCommands(program: Command): void {
             status:
               fs.existsSync(container.database.path) && sqliteHealthy && writable ? "pass" : "warn",
             detail: `${container.database.path} (sqlite=${sqliteHealthy ? "ok" : "check failed"}, writable=${writable})`,
+          },
+          {
+            name: "import system",
+            status: resolved.imports.enabled ? "pass" : "warn",
+            detail: latestImport
+              ? `enabled=${resolved.imports.enabled}, latest=${latestImport.status}, imported=${latestImport.imported}, rejected=${latestImport.rejectedNoise}`
+              : `enabled=${resolved.imports.enabled}, no import job recorded yet`,
+          },
+          {
+            name: "export / backup",
+            status: fs.existsSync(pluginPaths.pluginRoot) && (await isWritable(path.resolve(pluginPaths.pluginRoot, resolved.exports.directory)))
+              ? "pass"
+              : "warn",
+            detail: latestExport
+              ? `latest=${latestExport.outputPath}`
+              : `export directory=${path.resolve(pluginPaths.pluginRoot, resolved.exports.directory)}`,
           },
           {
             name: "embedding provider",
@@ -158,6 +186,13 @@ export function registerDoctorCommands(program: Command): void {
             detail: latestProfile
               ? `Latest profile=${latestProfile.runId}, prompt=${latestProfile.promptTokens} (${latestProfile.promptTokensSource})`
               : "No prompt profiles recorded yet",
+          },
+          {
+            name: "recovery path",
+            status: latestExport ? "pass" : "warn",
+            detail: latestExport
+              ? "Export exists; recovery can start from the latest export and config identity."
+              : "Run `openclaw-recall export memory` after import so you have a restorable backup.",
           },
         ],
       };

@@ -4,6 +4,11 @@ Persistent memory, context compression, and profile visibility for OpenClaw.
 
 OpenClaw Recall is an enhancement plugin for OpenClaw. It adds automatic memory write, cross-session recall, prompt compression, tool output compaction, and inspectable profile data without replacing OpenClaw's runtime or product shell.
 
+It now supports two persistent identity paths:
+
+- `local` mode: durable memory stays on the current OpenClaw home
+- `reconnect` mode: the same identity key or memory space id can reconnect to the same logical memory space across machines
+
 ## Why OpenClaw users install it
 
 OpenClaw Recall targets four recurring problems:
@@ -26,7 +31,9 @@ After installing it, you get:
 ```bash
 npm install openclaw-recall
 openclaw plugins install --link ./node_modules/openclaw-recall
+openclaw-recall config init --mode local --write-openclaw
 openclaw plugins info openclaw-recall
+openclaw-recall config validate
 openclaw-recall doctor
 openclaw-recall status
 ```
@@ -39,10 +46,26 @@ cd openclaw-recall
 npm install
 npm run build
 openclaw plugins install --link .
+openclaw-recall config init --mode local --write-openclaw
 openclaw plugins info openclaw-recall
+openclaw-recall config validate
 openclaw-recall doctor
 openclaw-recall status
 ```
+
+## Local vs reconnect mode
+
+Use `local` when you want durable memory on the current machine only.
+
+Use `reconnect` when you already have an identity key or memory space id and want the same logical memory space on a new machine or a fresh OpenClaw home.
+
+```bash
+openclaw-recall config init --mode local
+openclaw-recall config init --mode reconnect --identity-key recall_xxx --memory-space space_xxx
+openclaw-recall config validate
+```
+
+Identity keys are secrets. Keep them in a password manager or another secure secret store.
 
 ## 5-minute value check
 
@@ -67,6 +90,18 @@ Success looks like:
 
 See [EXAMPLES.md](./EXAMPLES.md) for a copyable walkthrough.
 
+## Import first, then verify
+
+The recommended first-use path is:
+
+1. install the plugin
+2. initialize config for `local` or `reconnect`
+3. run `openclaw-recall import dry-run`
+4. run `openclaw-recall import run`
+5. verify with `doctor`, `status`, `memory explain`, and `profile inspect`
+
+If you already have prior transcripts or memory files, importing them is a better first proof than a synthetic seed chat.
+
 ## Operator CLI
 
 ```bash
@@ -75,6 +110,12 @@ openclaw-recall status
 openclaw-recall config show
 openclaw-recall config validate
 openclaw-recall config init
+openclaw-recall import dry-run
+openclaw-recall import run
+openclaw-recall import status
+openclaw-recall export memory
+openclaw-recall export profile
+openclaw-recall export session --session <sessionId>
 openclaw-recall memory list
 openclaw-recall memory inspect <id>
 openclaw-recall memory search "<query>"
@@ -118,6 +159,15 @@ Configuration precedence:
 
 Legacy `OPENCLAW_MEMORY_PLUGIN_*` variables are still accepted as compatibility aliases during the rename transition.
 
+Important identity-related variables:
+
+- `OPENCLAW_RECALL_IDENTITY_MODE`
+- `OPENCLAW_RECALL_IDENTITY_KEY`
+- `OPENCLAW_RECALL_MEMORY_SPACE_ID`
+- `OPENCLAW_RECALL_IDENTITY_API_KEY`
+- `OPENCLAW_RECALL_IDENTITY_ENDPOINT`
+- `OPENCLAW_RECALL_EXPORT_DIRECTORY`
+
 ## Compatibility
 
 Verified for `1.0.0`:
@@ -144,6 +194,7 @@ OpenClaw Recall does not pretend every number is exact:
 - OpenClaw plugin CLI exposure through `openclaw <subcommand>` is still upstream-limited; use `openclaw-recall`
 - OpenClaw may emit `plugins.allow is empty` warning noise in some install/info flows
 - memory conflict resolution is still rule-based
+- reconnect mode currently provides the identity/config/verify path first; fully remote memory backend implementations may still vary by deployment
 
 These are known release limitations, not blockers for normal use.
 

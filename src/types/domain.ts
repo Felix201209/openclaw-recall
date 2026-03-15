@@ -178,6 +178,59 @@ export interface ConfigValidationReport {
   precedence: string[];
 }
 
+export type IdentityMode = "local" | "reconnect" | "cloud";
+
+export interface IdentityStatus {
+  mode: IdentityMode;
+  configured: boolean;
+  backendType: string;
+  workspaceScope?: string;
+  userScope?: string;
+  identityKeyPresent: boolean;
+  apiKeyPresent: boolean;
+  memorySpaceId?: string;
+  endpoint?: string;
+  reconnectReady: boolean;
+  reachability: "local" | "configured" | "unavailable";
+  warnings: string[];
+}
+
+export interface ImportFileReport {
+  path: string;
+  kind: "memory" | "session" | "transcript" | "artifact" | "unknown";
+  status: "imported" | "skipped" | "rejected" | "failed";
+  imported: number;
+  skipped: number;
+  rejected: number;
+  error?: string;
+}
+
+export interface ImportJobReport {
+  jobId: string;
+  mode: "dry-run" | "run";
+  createdAt: string;
+  completedAt?: string;
+  status: "planned" | "completed" | "failed";
+  rootPaths: string[];
+  scannedFiles: number;
+  processedFiles: number;
+  imported: number;
+  skippedDuplicates: number;
+  rejectedNoise: number;
+  files: ImportFileReport[];
+  notes: string[];
+}
+
+export interface ExportReport {
+  exportId: string;
+  kind: "memory" | "profile" | "session";
+  format: "json" | "jsonl";
+  createdAt: string;
+  outputPath: string;
+  itemCount: number;
+  sessionId?: string;
+}
+
 export interface PluginRunContext {
   runId: string;
   sessionId: string;

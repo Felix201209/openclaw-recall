@@ -13,6 +13,20 @@ Expected result:
 - OpenClaw Recall writes `preference` memory rows
 - later sessions no longer need the full original transcript to recover the preference
 
+## Import-first demo
+
+```bash
+openclaw-recall import dry-run
+openclaw-recall import run
+openclaw-recall import status
+```
+
+Expected result:
+
+- session and memory files are scanned
+- noisy files are counted as rejected instead of silently imported
+- duplicate material is merged instead of duplicated
+
 ## Cross-session recall demo
 
 Start a new session and ask:
@@ -27,10 +41,10 @@ Expected result:
 - the assistant recalls `Felix`, `中文`, and `简洁`
 - profile output shows retrieval evidence
 
-Example output from the repository demo:
+Example clean answer shape:
 
 ```text
-我记得：• [preference] User prefers to be addressed as Felix，用中文回答，并且尽量简洁。. (score=18.34; importance=9.2; why=high-value memory type, high confidence for "你记得我的偏好吗？".)
+我记得你偏直接、偏执行导向，也更喜欢简洁、结构化的回复。
 ```
 
 ## Tool compaction demo
@@ -62,6 +76,23 @@ Success indicators:
 - `memory explain` gives ranked retrieval reasons
 - `profile list --json` shows at least one run with `promptTokensSource: "exact"`
 - `session inspect` shows tool results with `savedTokens > 0`
+
+## Backup and recovery demo
+
+```bash
+openclaw-recall export memory
+openclaw-recall export profile
+openclaw-recall export session --session <sessionId>
+```
+
+Then on the new machine:
+
+```bash
+openclaw-recall config init --mode reconnect --identity-key recall_xxx --memory-space space_xxx --write-openclaw
+openclaw-recall import run /path/to/export-dir
+openclaw-recall doctor
+openclaw-recall status
+```
 
 ## Sample status output
 

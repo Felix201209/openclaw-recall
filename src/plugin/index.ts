@@ -43,7 +43,7 @@ const plugin = {
 
     api.registerCli(
       async ({ program }) => {
-        const [{ registerMemoryCommands }, { registerProfileCommands }, { registerDoctorCommands }, { registerConfigCommands }, { registerStatusCommands }, { registerSessionCommands }] =
+        const [{ registerMemoryCommands }, { registerProfileCommands }, { registerDoctorCommands }, { registerConfigCommands }, { registerStatusCommands }, { registerSessionCommands }, { registerImportCommands }, { registerExportCommands }] =
           await Promise.all([
             import("../cli/commands/memory.js"),
             import("../cli/commands/profile.js"),
@@ -51,6 +51,8 @@ const plugin = {
             import("../cli/commands/config.js"),
             import("../cli/commands/status.js"),
             import("../cli/commands/session.js"),
+            import("../cli/commands/import.js"),
+            import("../cli/commands/export.js"),
           ]);
         const sub = program.command("recall").description("Inspect OpenClaw Recall");
         registerStatusCommands(sub);
@@ -59,6 +61,8 @@ const plugin = {
         registerProfileCommands(sub);
         registerSessionCommands(sub);
         registerConfigCommands(sub);
+        registerImportCommands(sub);
+        registerExportCommands(sub);
       },
       { commands: ["recall"] },
     );

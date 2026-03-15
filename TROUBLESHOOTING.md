@@ -74,6 +74,53 @@ If you intentionally disabled auto-write, re-enable it:
 unset OPENCLAW_RECALL_AUTO_WRITE
 ```
 
+## Reconnect mode says identity is incomplete
+
+Cause:
+
+- `identity.mode` is `reconnect` or `cloud`
+- but neither `identityKey` nor `memorySpaceId` is configured
+
+Fix:
+
+```bash
+openclaw-recall config init --mode reconnect --identity-key recall_xxx --memory-space space_xxx --write-openclaw
+openclaw-recall config validate
+```
+
+## Import found files but wrote nothing
+
+Likely causes:
+
+- files only contained noisy wrappers or unsupported objects
+- dry-run was used instead of `import run`
+- duplicates merged into existing memory instead of creating new rows
+
+Check:
+
+```bash
+openclaw-recall import status
+openclaw-recall memory list
+```
+
+If the report shows high `rejectedNoise`, inspect the source files before retrying.
+
+## I need a backup before changing machines
+
+Run:
+
+```bash
+openclaw-recall export memory
+openclaw-recall export profile
+openclaw-recall export session --session <sessionId>
+```
+
+Keep:
+
+- the export files
+- your identity key
+- your OpenClaw config snippet
+
 ## OpenAI-compatible embeddings selected but no key found
 
 Fix one of:

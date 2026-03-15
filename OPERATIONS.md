@@ -5,6 +5,7 @@
 ```bash
 openclaw-recall doctor
 openclaw-recall status
+openclaw-recall import status
 openclaw-recall memory list
 openclaw-recall profile list
 ```
@@ -25,6 +26,9 @@ openclaw-recall profile list
 - compression pipeline activity
 - recent tool compaction evidence
 - recent profile path integrity
+- identity/reconnect configuration
+- import system health and latest import report
+- export path writability and recovery readiness
 
 ## Debugging memory behavior
 
@@ -63,6 +67,26 @@ Use the authenticated OpenClaw route:
 - `/plugins/openclaw-recall/status`
 - `/plugins/openclaw-recall/sessions/:sessionId`
 
+## Import operations
+
+```bash
+openclaw-recall import dry-run
+openclaw-recall import run
+openclaw-recall import status
+```
+
+The dry-run path is recommended first. It shows what would be imported, what would be rejected as noise, and what would be merged as duplicates.
+
+## Backup and export
+
+```bash
+openclaw-recall export memory
+openclaw-recall export profile
+openclaw-recall export session --session <sessionId>
+```
+
+The latest export path is surfaced in `openclaw-recall status`.
+
 ## Recovery
 
 ### Disable the plugin temporarily
@@ -92,6 +116,13 @@ $OPENCLAW_HOME/.openclaw/plugins/openclaw-recall/
 ```
 
 This clears stored memories, profiles, and tool compactions for the plugin only.
+
+### Restore on a new machine
+
+1. install OpenClaw Recall
+2. run `config init --mode reconnect` if you have an identity key
+3. run `import run <path-to-exported-files>`
+4. verify with `doctor` and `status`
 
 ### Export debug evidence
 

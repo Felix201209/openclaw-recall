@@ -3,6 +3,11 @@ export const DEFAULT_HTTP_PATH = "/plugins/openclaw-recall";
 
 export const defaultPluginConfig = {
   enabled: true,
+  identity: {
+    mode: "local" as const,
+    backendType: "local" as const,
+    verifyOnStartup: true,
+  },
   embedding: {
     provider: "local" as const,
     model: "text-embedding-3-small",
@@ -34,25 +39,39 @@ export const defaultPluginConfig = {
   inspect: {
     httpPath: DEFAULT_HTTP_PATH,
   },
+  imports: {
+    enabled: true,
+    defaultRoots: ["./memories", "./sessions", "./transcripts", "."],
+    maxFiles: 200,
+    maxConcurrency: 4,
+  },
+  exports: {
+    directory: ".exports",
+    defaultFormat: "json" as const,
+  },
 };
 
-export function buildDefaultPluginEntry() {
+export function buildDefaultPluginEntry(overrides: Record<string, unknown> = {}) {
   return {
     enabled: true,
     hooks: {
       allowPromptInjection: true,
     },
     config: {
+      identity: defaultPluginConfig.identity,
       memory: defaultPluginConfig.memory,
       compression: defaultPluginConfig.compression,
       profile: defaultPluginConfig.profile,
       inspect: defaultPluginConfig.inspect,
+      imports: defaultPluginConfig.imports,
+      exports: defaultPluginConfig.exports,
       embedding: {
         provider: defaultPluginConfig.embedding.provider,
         model: defaultPluginConfig.embedding.model,
         baseUrl: defaultPluginConfig.embedding.baseUrl,
         dimensions: defaultPluginConfig.embedding.dimensions,
       },
+      ...overrides,
     },
   };
 }

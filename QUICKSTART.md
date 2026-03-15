@@ -13,7 +13,9 @@ Install OpenClaw Recall, prove the hooks are active, and verify memory, recall, 
 ```bash
 npm install openclaw-recall
 openclaw plugins install --link ./node_modules/openclaw-recall
+openclaw-recall config init --mode local --write-openclaw
 openclaw plugins info openclaw-recall
+openclaw-recall config validate
 openclaw-recall doctor
 openclaw-recall status
 ```
@@ -26,18 +28,24 @@ cd openclaw-recall
 npm install
 npm run build
 openclaw plugins install --link .
+openclaw-recall config init --mode local --write-openclaw
 openclaw plugins info openclaw-recall
+openclaw-recall config validate
 openclaw-recall doctor
 openclaw-recall status
 ```
 
-## Optional starter config
+## Reconnect instead of local mode
+
+If you already have an identity key or memory space id:
 
 ```bash
-openclaw-recall config init
-openclaw-recall config init --write-openclaw
+openclaw-recall config init --mode reconnect --identity-key recall_xxx --memory-space space_xxx
+openclaw-recall config init --mode reconnect --identity-key recall_xxx --memory-space space_xxx --write-openclaw
 openclaw-recall config validate
 ```
+
+Use reconnect mode on a new machine when you want to restore the same logical memory space.
 
 ## Common environment overrides
 
@@ -48,7 +56,18 @@ OPENCLAW_RECALL_EMBEDDING_PROVIDER=local
 OPENCLAW_RECALL_CONTEXT_BUDGET=2400
 OPENCLAW_RECALL_RECENT_TURNS=6
 OPENCLAW_RECALL_HTTP_PATH=/plugins/openclaw-recall
+OPENCLAW_RECALL_IDENTITY_MODE=local
 ```
+
+## Import first
+
+```bash
+openclaw-recall import dry-run
+openclaw-recall import run
+openclaw-recall import status
+```
+
+This scans common `memories/*.json`, `sessions/*.json`, `*.jsonl`, and local plugin artifacts before you seed a synthetic demo.
 
 ## First proof run
 
@@ -62,6 +81,7 @@ That demonstrates:
 - cross-session recall
 - tool compaction
 - profile recording
+- operator verification after import
 
 ## Full smoke path
 
@@ -87,4 +107,20 @@ That additionally checks:
 - `openclaw plugins info openclaw-recall` shows `Status: loaded`
 - `openclaw-recall doctor` has no `fail` checks
 - `openclaw-recall status` shows non-zero `memoryCount` and `profileCount` after a demo run
+- `openclaw-recall import status` shows the last import report
 - `openclaw-recall profile list --json` shows `promptTokensSource: "exact"` on provider paths that return usage
+
+## Backup and recovery
+
+```bash
+openclaw-recall export memory
+openclaw-recall export profile
+openclaw-recall export session --session <sessionId>
+```
+
+Keep the exported files and your identity key. Recovery is:
+
+1. install the plugin on the new machine
+2. configure `local` or `reconnect`
+3. run `import run` against the exported files
+4. verify with `doctor` and `status`

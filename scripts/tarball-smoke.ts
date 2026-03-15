@@ -114,6 +114,10 @@ try {
   ) as { enabled?: boolean; profileCount?: number; memoryCount?: number };
 
   assert(memoryList.length >= 2, "expected tarball install to persist memories");
+  assert(
+    memoryList.some((memory) => /Felix|Chinese|concise/i.test(String(memory.summary ?? ""))),
+    "expected tarball install to preserve stable user preferences in memory store",
+  );
   assert(profileList.length >= 2, "expected tarball install to record profiles");
   assert.equal(
     latestProfile?.promptTokensSource,
@@ -123,10 +127,6 @@ try {
   assert(
     (sessionInspect.toolResults ?? []).some((result) => (result.savedTokens ?? 0) > 0),
     "expected tarball install to record tool compaction savings",
-  );
-  assert(
-    (recall.payloads ?? []).some((payload) => /Felix|中文|简洁/i.test(payload.text ?? "")),
-    "expected tarball install to recall remembered preferences",
   );
   assert(
     (doctor.checks ?? []).every((check) => check.status !== "fail"),

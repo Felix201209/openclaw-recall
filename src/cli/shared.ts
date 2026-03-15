@@ -3,8 +3,12 @@ import path from "node:path";
 import JSON5 from "json5";
 import { Command } from "commander";
 import { listPluginEnvOverrides, resolvePluginConfig, resolveOpenClawHome } from "../config/loader.js";
+import { IdentityManager } from "../identity/IdentityManager.js";
+import { ImportService } from "../importing/ImportService.js";
+import { ExportService } from "../exporting/ExportService.js";
 import type { OpenClawMemoryPluginConfig, ResolvedPluginConfig } from "../config/schema.js";
 import { getOrCreatePluginContainer, type PluginLogger } from "../plugin/runtime-state.js";
+import { resolvePluginPaths } from "../storage/paths.js";
 
 const PRIMARY_PLUGIN_ID = "openclaw-recall";
 const LEGACY_PLUGIN_ID = "openclaw-memory-plugin";
@@ -55,9 +59,17 @@ export async function createCliContainer(
     config: loaded.resolved,
     logger,
   });
+  const identity = new IdentityManager(loaded.resolved);
+  const imports = new ImportService(container, loaded.resolved);
+  const exports = new ExportService(container, loaded.resolved);
+  const pluginPaths = resolvePluginPaths(env);
   return {
     ...loaded,
     container,
+    identity,
+    importService: imports,
+    exportService: exports,
+    pluginPaths,
   };
 }
 

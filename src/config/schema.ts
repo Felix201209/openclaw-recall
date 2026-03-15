@@ -1,10 +1,22 @@
 import { DEFAULT_HTTP_PATH } from "./defaults.js";
 
 export type EmbeddingProviderId = "local" | "openai";
+export type IdentityMode = "local" | "reconnect" | "cloud";
 
 export type OpenClawMemoryPluginConfig = {
   enabled?: boolean;
   storageDir?: string;
+  identity?: {
+    mode?: IdentityMode;
+    backendType?: "local" | "openai-memory" | "custom";
+    identityKey?: string;
+    apiKey?: string;
+    memorySpaceId?: string;
+    endpoint?: string;
+    workspaceScope?: string;
+    userScope?: string;
+    verifyOnStartup?: boolean;
+  };
   embedding?: {
     provider?: EmbeddingProviderId;
     apiKey?: string;
@@ -37,12 +49,33 @@ export type OpenClawMemoryPluginConfig = {
   inspect?: {
     httpPath?: string;
   };
+  imports?: {
+    enabled?: boolean;
+    defaultRoots?: string[];
+    maxFiles?: number;
+    maxConcurrency?: number;
+  };
+  exports?: {
+    directory?: string;
+    defaultFormat?: "json" | "jsonl";
+  };
 };
 
 export type ResolvedPluginConfig = {
   enabled: boolean;
   storageDir: string;
   databasePath: string;
+  identity: {
+    mode: IdentityMode;
+    backendType: "local" | "openai-memory" | "custom";
+    identityKey?: string;
+    apiKey?: string;
+    memorySpaceId?: string;
+    endpoint?: string;
+    workspaceScope?: string;
+    userScope?: string;
+    verifyOnStartup: boolean;
+  };
   embedding: {
     provider: EmbeddingProviderId;
     apiKey?: string;
@@ -75,6 +108,16 @@ export type ResolvedPluginConfig = {
   inspect: {
     httpPath: string;
   };
+  imports: {
+    enabled: boolean;
+    defaultRoots: string[];
+    maxFiles: number;
+    maxConcurrency: number;
+  };
+  exports: {
+    directory: string;
+    defaultFormat: "json" | "jsonl";
+  };
 };
 
 export const pluginConfigSchema = {
@@ -83,6 +126,21 @@ export const pluginConfigSchema = {
   properties: {
     enabled: { type: "boolean" },
     storageDir: { type: "string" },
+    identity: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        mode: { type: "string", enum: ["local", "reconnect", "cloud"] },
+        backendType: { type: "string", enum: ["local", "openai-memory", "custom"] },
+        identityKey: { type: "string" },
+        apiKey: { type: "string" },
+        memorySpaceId: { type: "string" },
+        endpoint: { type: "string" },
+        workspaceScope: { type: "string" },
+        userScope: { type: "string" },
+        verifyOnStartup: { type: "boolean" },
+      },
+    },
     embedding: {
       type: "object",
       additionalProperties: false,
@@ -135,6 +193,28 @@ export const pluginConfigSchema = {
         httpPath: { type: "string", default: DEFAULT_HTTP_PATH },
       },
     },
+    imports: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        enabled: { type: "boolean" },
+        defaultRoots: {
+          type: "array",
+          items: { type: "string" },
+          maxItems: 12,
+        },
+        maxFiles: { type: "number", minimum: 1, maximum: 5000 },
+        maxConcurrency: { type: "number", minimum: 1, maximum: 16 },
+      },
+    },
+    exports: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        directory: { type: "string" },
+        defaultFormat: { type: "string", enum: ["json", "jsonl"] },
+      },
+    },
   },
 } as const;
 
@@ -159,9 +239,29 @@ export const runtimePluginConfigSchema = {
       label: "Write Threshold",
       help: "Minimum importance score required before a candidate memory is persisted.",
     },
+    "identity.mode": {
+      label: "Identity Mode",
+      help: "Use local-only identity or reconnect to an existing memory space.",
+    },
+    "identity.identityKey": {
+      label: "Identity Key",
+      sensitive: true,
+      placeholder: "recall_xxx",
+      help: "Reconnects the same memory space across sessions or machines.",
+    },
+    "identity.apiKey": {
+      label: "Memory Backend API Key",
+      sensitive: true,
+      placeholder: "sk-...",
+      help: "Required only when your memory backend needs a remote API key.",
+    },
     "inspect.httpPath": {
       label: "Inspect HTTP Path",
       help: "Plugin inspect route prefix. Defaults to /plugins/openclaw-recall.",
+    },
+    "imports.defaultRoots": {
+      label: "Import Roots",
+      help: "Default paths scanned by openclaw-recall import run/dry-run.",
     },
   },
   parse(value: unknown): OpenClawMemoryPluginConfig {
