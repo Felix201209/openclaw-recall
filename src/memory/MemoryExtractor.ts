@@ -1,0 +1,357 @@
+import crypto from "node:crypto";
+import { fingerprint, sentenceFromText, tokenize, uniqueStrings } from "../shared/text.js";
+import { ChatTurn, MemoryKind, MemoryRecord, SessionState } from "../types/domain.js";
+
+export interface ExtractionResult {
+  memories: MemoryRecord[];
+  statePatch: Partial<Omit<SessionState, "sessionId" | "updatedAt">>;
+  candidateCount: number;
+}
+
+type CandidateSeed = {
+  kind: MemoryKind;
+  summary: string;
+  content: string;
+  ttlDays?: number;
+  decayRate?: number;
+  futureUtility: number;
+  userSpecificity: number;
+  repetition: number;
+  semanticWeight: number;
+  redundancy: number;
+  confidence: number;
+  memoryGroup?: string;
+};
+
+const IMPORTANCE_THRESHOLD = 5.2;
+
+export class MemoryExtractor {
+  extract(turn: ChatTurn): ExtractionResult {
+    const text = turn.text.trim();
+    const topics = tokenize(text);
+    const entityKeys = extractEntityKeys(text);
+    const now = new Date().toISOString();
+    const isQuestion = /[?？]/.test(text);
+    const isRecallQuery = /记得|remember|memory|回忆|还记得/i.test(text);
+    const candidates: CandidateSeed[] = [];
+    const statePatch: ExtractionResult["statePatch"] = {
+      constraints: [],
+      decisions: [],
+      openQuestions: [],
+    };
+
+    if (!isQuestion && !isRecallQuery) {
+      candidates.push(...extractPreferenceCandidates(text));
+      candidates.push(...extractSemanticCandidates(text));
+      candidates.push(...extractEpisodicCandidates(text));
+    }
+
+    const taskMatch = text.match(/(?:当前任务|task|目标是|需要|need to|next step|下一步|pending|要做)(.+)/i);
+    if (taskMatch && !isQuestion) {
+      statePatch.currentTask = sentenceFromText(taskMatch[1]);
+      candidates.push({
+        kind: "session_state",
+        summary: `Current task: ${sentenceFromText(taskMatch[1])}.`,
+        content: text,
+        ttlDays: 14,
+        decayRate: 0.18,
+        futureUtility: 3.2,
+        userSpecificity: 2.2,
+        repetition: 0.8,
+        semanticWeight: 1.6,
+        redundancy: 0.3,
+        confidence: 0.82,
+        memoryGroup: "session:current-task",
+      });
+    }
+
+    if (!isQuestion && /不要|不能|must not|must|constraint|约束/i.test(text)) {
+      const constraint = sentenceFromText(text);
+      statePatch.constraints = uniqueStrings([constraint]);
+      candidates.push({
+        kind: "session_state",
+        summary: `Constraint: ${constraint}.`,
+        content: text,
+        ttlDays: 21,
+        decayRate: 0.12,
+        futureUtility: 3.1,
+        userSpecificity: 1.8,
+        repetition: 0.6,
+        semanticWeight: 1.4,
+        redundancy: 0.2,
+        confidence: 0.8,
+        memoryGroup: `constraint:${fingerprint(constraint)}`,
+      });
+    }
+
+    if (!isQuestion && /决定|decide|will use|采用|选择|we should|我们要/i.test(text)) {
+      const decision = sentenceFromText(text);
+      statePatch.decisions = uniqueStrings([decision]);
+      candidates.push({
+        kind: "session_state",
+        summary: `Decision: ${decision}.`,
+        content: text,
+        ttlDays: 21,
+        decayRate: 0.12,
+        futureUtility: 3.0,
+        userSpecificity: 1.7,
+        repetition: 0.9,
+        semanticWeight: 1.5,
+        redundancy: 0.2,
+        confidence: 0.82,
+        memoryGroup: `decision:${fingerprint(decision)}`,
+      });
+    }
+
+    if (turn.role === "user" && isQuestion) {
+      const question = sentenceFromText(text);
+      statePatch.openQuestions = uniqueStrings([question]);
+      candidates.push({
+        kind: "session_state",
+        summary: `Open question: ${question}.`,
+        content: text,
+        ttlDays: 7,
+        decayRate: 0.24,
+        futureUtility: 2.1,
+        userSpecificity: 1.4,
+        repetition: 0.2,
+        semanticWeight: 1.1,
+        redundancy: 0.1,
+        confidence: 0.7,
+        memoryGroup: `open-question:${fingerprint(question)}`,
+      });
+    }
+
+    const memories = candidates
+      .map((candidate) => this.materializeCandidate(candidate, turn, topics, entityKeys, now))
+      .filter((memory) => (memory.importance ?? 0) >= IMPORTANCE_THRESHOLD);
+
+    return {
+      memories,
+      statePatch,
+      candidateCount: candidates.length,
+    };
+  }
+
+  limit(memories: MemoryRecord[], maxWrites: number): MemoryRecord[] {
+    return [...memories]
+      .sort((left, right) => (right.importance ?? 0) - (left.importance ?? 0))
+      .slice(0, maxWrites);
+  }
+
+  private materializeCandidate(
+    candidate: CandidateSeed,
+    turn: ChatTurn,
+    topics: string[],
+    entityKeys: string[],
+    now: string,
+  ): MemoryRecord {
+    const normalizedSummary = candidate.summary.trim();
+    const importance =
+      candidate.futureUtility +
+      candidate.userSpecificity +
+      candidate.repetition +
+      candidate.semanticWeight -
+      candidate.redundancy;
+    return {
+      id: crypto.randomUUID(),
+      kind: candidate.kind,
+      summary: normalizedSummary,
+      content: candidate.content,
+      topics,
+      entityKeys,
+      salience: Math.min(10, 4 + importance),
+      fingerprint: fingerprint(`${candidate.kind}:${normalizedSummary}`),
+      createdAt: now,
+      lastSeenAt: now,
+      ttlDays: candidate.ttlDays,
+      decayRate: candidate.decayRate ?? 0.06,
+      confidence: candidate.confidence,
+      importance,
+      active: true,
+      memoryGroup: candidate.memoryGroup,
+      version: 1,
+      sourceSessionId: turn.sessionId,
+      sourceTurnIds: [turn.id],
+    };
+  }
+}
+
+function extractPreferenceCandidates(text: string): CandidateSeed[] {
+  const patterns: Array<{ regex: RegExp; summary: (match: RegExpMatchArray) => string; group: string }> = [
+    {
+      regex: /以后默认叫我(.+)/,
+      summary: (match) => `User prefers to be addressed as ${sentenceFromText(match[1], 40)}.`,
+      group: "preference:name",
+    },
+    {
+      regex: /叫我(.+)/,
+      summary: (match) => `User prefers to be addressed as ${sentenceFromText(match[1], 40)}.`,
+      group: "preference:name",
+    },
+    {
+      regex: /i prefer (.+)/i,
+      summary: (match) => `User prefers ${sentenceFromText(match[1])}.`,
+      group: "preference:style",
+    },
+    {
+      regex: /i like (.+)/i,
+      summary: (match) => `User likes ${sentenceFromText(match[1])}.`,
+      group: "preference:style",
+    },
+    {
+      regex: /我喜欢(.+)/,
+      summary: (match) => `User likes ${sentenceFromText(match[1])}.`,
+      group: "preference:style",
+    },
+    {
+      regex: /prefer chinese|use chinese|中文回答|用中文/i,
+      summary: () => "User prefers Chinese responses.",
+      group: "preference:language",
+    },
+    {
+      regex: /concise|简洁|直接|terminal-first/i,
+      summary: () => "User prefers concise terminal-first answers.",
+      group: "preference:style",
+    },
+  ];
+
+  return patterns
+    .flatMap((pattern) => {
+      const match = text.match(pattern.regex);
+      if (!match) {
+        return [];
+      }
+      return [
+        {
+          kind: "preference" as const,
+          summary: pattern.summary(match),
+          content: text,
+          ttlDays: 180,
+          decayRate: 0.01,
+          futureUtility: 3.4,
+          userSpecificity: 3.0,
+          repetition: 1.0,
+          semanticWeight: 2.2,
+          redundancy: 0.4,
+          confidence: 0.9,
+          memoryGroup: pattern.group,
+        },
+      ];
+    })
+    .filter((candidate) => !/什么|吗|？|\?$/.test(candidate.summary));
+}
+
+function extractSemanticCandidates(text: string): CandidateSeed[] {
+  const patterns: Array<{ regex: RegExp; summary: (match: RegExpMatchArray) => string; group: string }> = [
+    {
+      regex: /my name is (.+)/i,
+      summary: (match) => `User name is ${sentenceFromText(match[1], 40)}.`,
+      group: "semantic:user-name",
+    },
+    {
+      regex: /我是(.+)/,
+      summary: (match) => `Stable user fact: ${sentenceFromText(match[1])}.`,
+      group: "semantic:user-fact",
+    },
+    {
+      regex: /目标是(.+)/,
+      summary: (match) => `Project goal: ${sentenceFromText(match[1])}.`,
+      group: "semantic:goal",
+    },
+    {
+      regex: /goal is to (.+)/i,
+      summary: (match) => `Project goal: ${sentenceFromText(match[1])}.`,
+      group: "semantic:goal",
+    },
+    {
+      regex: /building (.+)/i,
+      summary: (match) => `User is building ${sentenceFromText(match[1])}.`,
+      group: "semantic:project",
+    },
+    {
+      regex: /正在做(.+)/,
+      summary: (match) => `User is working on ${sentenceFromText(match[1])}.`,
+      group: "semantic:project",
+    },
+  ];
+
+  return patterns.flatMap((pattern) => {
+    const match = text.match(pattern.regex);
+    if (!match) {
+      return [];
+    }
+    return [
+      {
+        kind: "semantic" as const,
+        summary: pattern.summary(match),
+        content: text,
+        ttlDays: 120,
+        decayRate: 0.02,
+        futureUtility: 3.0,
+        userSpecificity: 2.8,
+        repetition: 0.8,
+        semanticWeight: 2.0,
+        redundancy: 0.4,
+        confidence: 0.86,
+        memoryGroup: pattern.group,
+      },
+    ];
+  });
+}
+
+function extractEpisodicCandidates(text: string): CandidateSeed[] {
+  const candidates: CandidateSeed[] = [];
+  if (/今天|刚刚|we fixed|修复了|决定了|完成了|finished|shipped|上线|实现了/i.test(text)) {
+    candidates.push({
+      kind: "episodic",
+      summary: `Recent event: ${sentenceFromText(text)}.`,
+      content: text,
+      ttlDays: 14,
+      decayRate: 0.2,
+      futureUtility: 1.6,
+      userSpecificity: 1.4,
+      repetition: 0.4,
+      semanticWeight: 0.8,
+      redundancy: 0.2,
+      confidence: 0.7,
+      memoryGroup: `episodic:${fingerprint(sentenceFromText(text, 40))}`,
+    });
+  }
+  if (/readme\.md|README\.md|package\.json|AGENTS\.md/i.test(text)) {
+    candidates.push({
+      kind: "episodic",
+      summary: `User referenced ${text.match(/README\.md|package\.json|AGENTS\.md/i)?.[0] ?? "a project file"}.`,
+      content: text,
+      ttlDays: 7,
+      decayRate: 0.24,
+      futureUtility: 1.2,
+      userSpecificity: 1.5,
+      repetition: 0.1,
+      semanticWeight: 0.6,
+      redundancy: 0.2,
+      confidence: 0.66,
+      memoryGroup: "episodic:file-reference",
+    });
+  }
+  return candidates;
+}
+
+function extractEntityKeys(text: string): string[] {
+  const asciiEntities = Array.from(
+    new Set(
+      (text.match(/\b[A-Z][a-zA-Z0-9_-]{1,}\b/g) ?? [])
+        .map((value) => value.toLowerCase())
+        .filter((value) => value.length > 2),
+    ),
+  );
+  const cjkEntities = Array.from(
+    new Set(
+      (text.match(/[\p{Script=Han}]{2,8}/gu) ?? [])
+        .map((value) => value.trim())
+        .filter((value) => value.length >= 2),
+    ),
+  );
+
+  return uniqueStrings([...asciiEntities, ...cjkEntities]).slice(0, 12);
+}

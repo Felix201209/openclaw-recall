@@ -1,0 +1,8 @@
+node_modules
+dist
+.release
+.env
+.openclaw-plugin-test
+.openclaw-install-test
+.DS_Store
+*.log

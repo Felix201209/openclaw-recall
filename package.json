@@ -1,0 +1,78 @@
+{
+  "name": "openclaw-memory-plugin",
+  "version": "0.1.0",
+  "description": "Production-grade OpenClaw enhancement plugin for persistent memory, context compression, and inspectable profiling.",
+  "type": "module",
+  "main": "dist/src/plugin/index.js",
+  "types": "dist/src/plugin/index.d.ts",
+  "bin": {
+    "openclaw-memory-plugin": "dist/src/cli/index.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/src/plugin/index.d.ts",
+      "default": "./dist/src/plugin/index.js"
+    },
+    "./cli": {
+      "types": "./dist/src/cli/index.d.ts",
+      "default": "./dist/src/cli/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "ARCHITECTURE.md",
+    "OPENCLAW-INTEGRATION.md",
+    "OPERATIONS.md",
+    "PLUGIN-EXTRACTION-PLAN.md",
+    "NOTICE",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md",
+    "openclaw.plugin.json",
+    ".env.example"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc --noEmit -p tsconfig.json",
+    "doctor": "tsx src/cli/index.ts doctor",
+    "status": "tsx src/cli/index.ts status",
+    "test:integration": "tsx scripts/integration-smoke.ts",
+    "test:install": "tsx scripts/install-smoke.ts",
+    "release:build": "npm run build && mkdir -p .release && npm pack --pack-destination ./.release"
+  },
+  "keywords": [
+    "openclaw",
+    "plugin",
+    "memory",
+    "context-compression",
+    "profiling"
+  ],
+  "author": "Felix",
+  "license": "MIT",
+  "peerDependencies": {
+    "openclaw": ">=2026.3.13"
+  },
+  "dependencies": {
+    "commander": "^14.0.3",
+    "json5": "^2.2.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.0",
+    "openclaw": "^2026.3.13",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  },
+  "openclaw": {
+    "extensions": [
+      "./dist/src/plugin/index.js"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Felix201209/openclaw-memory-plugin.git"
+  },
+  "homepage": "https://github.com/Felix201209/openclaw-memory-plugin",
+  "bugs": {
+    "url": "https://github.com/Felix201209/openclaw-memory-plugin/issues"
+  }
+}

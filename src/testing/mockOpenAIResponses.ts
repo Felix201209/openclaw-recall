@@ -1,0 +1,284 @@
+import { sentenceFromText } from "../shared/text.js";
+
+type OpenAIResponsesParams = {
+  input?: unknown[];
+};
+
+type OpenAIResponseStreamEvent =
+  | { type: "response.output_item.added"; item: Record<string, unknown> }
+  | { type: "response.function_call_arguments.delta"; delta: string }
+  | { type: "response.output_item.done"; item: Record<string, unknown> }
+  | {
+      type: "response.completed";
+      response: {
+        status: "completed";
+        usage: {
+          input_tokens: number;
+          output_tokens: number;
+          total_tokens: number;
+        };
+      };
+    };
+
+function decodeBodyText(body: unknown): string {
+  if (!body) {
+    return "";
+  }
+  if (typeof body === "string") {
+    return body;
+  }
+  if (body instanceof Uint8Array) {
+    return Buffer.from(body).toString("utf8");
+  }
+  if (body instanceof ArrayBuffer) {
+    return Buffer.from(new Uint8Array(body)).toString("utf8");
+  }
+  return "";
+}
+
+function extractInputTexts(input: unknown[]): string {
+  return input
+    .flatMap((item) => {
+      if (!item || typeof item !== "object") {
+        return [];
+      }
+      const record = item as Record<string, unknown>;
+      const content = record.content;
+      if (!Array.isArray(content)) {
+        return [];
+      }
+      return content.flatMap((block) => {
+        if (!block || typeof block !== "object") {
+          return [];
+        }
+        const typed = block as Record<string, unknown>;
+        if (typeof typed.text === "string") {
+          return [typed.text];
+        }
+        return [];
+      });
+    })
+    .join("\n");
+}
+
+function extractLastUserText(input: unknown[]): string {
+  for (let index = input.length - 1; index >= 0; index -= 1) {
+    const item = input[index] as Record<string, unknown> | undefined;
+    if (!item || item.role !== "user") {
+      continue;
+    }
+    const content = item.content;
+    if (!Array.isArray(content)) {
+      continue;
+    }
+    const text = content
+      .flatMap((block) => {
+        if (!block || typeof block !== "object") {
+          return [];
+        }
+        const typed = block as Record<string, unknown>;
+        if (typed.type === "input_text" && typeof typed.text === "string") {
+          return [typed.text];
+        }
+        if (typeof typed.text === "string") {
+          return [typed.text];
+        }
+        return [];
+      })
+      .join("\n")
+      .trim();
+    if (text) {
+      return text;
+    }
+  }
+  return "";
+}
+
+function extractToolOutput(input: unknown[]): string {
+  for (const itemRaw of input) {
+    const item = itemRaw as Record<string, unknown> | undefined;
+    if (!item || item.type !== "function_call_output") {
+      continue;
+    }
+    return typeof item.output === "string" ? item.output : "";
+  }
+  return "";
+}
+
+function extractSection(text: string, section: string): string {
+  const escaped = section.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const regex = new RegExp(`${escaped}\\n([\\s\\S]*?)(?:\\n\\n[A-Z][A-Z ]+\\n|$)`);
+  return regex.exec(text)?.[1]?.trim() ?? "";
+}
+
+function buildSseResponse(events: unknown[]): Response {
+  const sse = `${events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join("")}data: [DONE]\n\n`;
+  const encoder = new TextEncoder();
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(encoder.encode(sse));
+      controller.close();
+    },
+  });
+  return new Response(body, {
+    status: 200,
+    headers: { "content-type": "text/event-stream" },
+  });
+}
+
+function buildTextSse(text: string): Response {
+  return buildSseResponse([
+    {
+      type: "response.output_item.added",
+      item: {
+        type: "message",
+        id: "msg_test_1",
+        role: "assistant",
+        content: [],
+        status: "in_progress",
+      },
+    },
+    {
+      type: "response.output_item.done",
+      item: {
+        type: "message",
+        id: "msg_test_1",
+        role: "assistant",
+        status: "completed",
+        content: [{ type: "output_text", text, annotations: [] }],
+      },
+    },
+    {
+      type: "response.completed",
+      response: {
+        status: "completed",
+        usage: { input_tokens: 10, output_tokens: 10, total_tokens: 20 },
+      },
+    },
+  ]);
+}
+
+async function buildResponse(params: OpenAIResponsesParams): Promise<Response> {
+  const input = Array.isArray(params.input) ? params.input : [];
+  const combinedText = extractInputTexts(input);
+  const userText = extractLastUserText(input);
+  const toolOutput = extractToolOutput(input);
+  const memorySection = extractSection(combinedText, "RELEVANT MEMORY");
+  const taskSection = extractSection(combinedText, "TASK STATE");
+
+  if (!toolOutput) {
+    const quotedPath = /read\s+"([^"]+)"/i.exec(userText)?.[1];
+    if (quotedPath) {
+      const argsJson = JSON.stringify({ path: quotedPath });
+      return buildSseResponse([
+        {
+          type: "response.output_item.added",
+          item: {
+            type: "function_call",
+            id: "fc_test_1",
+            call_id: "call_test_1",
+            name: "read",
+            arguments: "",
+          },
+        },
+        { type: "response.function_call_arguments.delta", delta: argsJson },
+        {
+          type: "response.output_item.done",
+          item: {
+            type: "function_call",
+            id: "fc_test_1",
+            call_id: "call_test_1",
+            name: "read",
+            arguments: argsJson,
+          },
+        },
+        {
+          type: "response.completed",
+          response: {
+            status: "completed",
+            usage: { input_tokens: 10, output_tokens: 10, total_tokens: 20 },
+          },
+        },
+      ]);
+    }
+  }
+
+  if (toolOutput) {
+    return buildTextSse(`Read complete. ${sentenceFromText(toolOutput, 180)}`);
+  }
+
+  if (/记得|remember/i.test(userText)) {
+    const memoryLine = memorySection
+      .split(/\r?\n/)
+      .find((line) => line.trim() && !/No relevant/i.test(line))
+      ?.replace(/^\d+\.\s*/, "")
+      ?.trim();
+    const taskLine = taskSection
+      .split(/\r?\n/)
+      .find((line) => line.trim() && !/No active task/i.test(line))
+      ?.trim();
+
+    return buildTextSse(
+      [
+        memoryLine ? `我记得：${memoryLine}` : "我暂时没有检索到稳定记忆。",
+        taskLine ? `当前任务状态：${taskLine}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    );
+  }
+
+  if (/以后默认叫我|call me/i.test(userText)) {
+    return buildTextSse(`已记录。我会按你的偏好处理，并在后续 session 中继续使用。`);
+  }
+
+  if (/目标|goal|build/i.test(userText) && taskSection) {
+    return buildTextSse(`收到。我会按这个任务状态继续推进：${sentenceFromText(taskSection, 160)}`);
+  }
+
+  return buildTextSse(`NovaClaw runtime is active. ${sentenceFromText(userText, 160)}`);
+}
+
+export function installOpenAiResponsesMock(params?: { baseUrl?: string }) {
+  const originalFetch = globalThis.fetch;
+  const baseUrl = params?.baseUrl ?? "https://api.openai.com/v1";
+  const responsesUrl = `${baseUrl.replace(/\/$/, "")}/responses`;
+  const isResponsesRequest = (url: string) =>
+    url === responsesUrl ||
+    url.startsWith(`${responsesUrl}/`) ||
+    url.startsWith(`${responsesUrl}?`);
+
+  const fetchImpl = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const url =
+      typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+
+    if (isResponsesRequest(url)) {
+      const bodyText =
+        typeof (init as { body?: unknown } | undefined)?.body !== "undefined"
+          ? decodeBodyText((init as { body?: unknown }).body)
+          : input instanceof Request
+            ? await input.clone().text()
+            : "";
+      const parsed = bodyText ? (JSON.parse(bodyText) as Record<string, unknown>) : {};
+      const inputItems = Array.isArray(parsed.input) ? parsed.input : [];
+      return await buildResponse({ input: inputItems });
+    }
+
+    if (url.startsWith(baseUrl)) {
+      throw new Error(`unexpected OpenAI request in mock mode: ${url}`);
+    }
+
+    if (!originalFetch) {
+      throw new Error(`fetch is not available (url=${url})`);
+    }
+    return await originalFetch(input, init);
+  };
+
+  (globalThis as unknown as { fetch?: unknown }).fetch = fetchImpl;
+  return {
+    baseUrl,
+    restore: () => {
+      (globalThis as unknown as { fetch?: unknown }).fetch = originalFetch;
+    },
+  };
+}
