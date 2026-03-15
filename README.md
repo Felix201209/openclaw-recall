@@ -25,6 +25,8 @@ After installing it, you get:
 - layered context compression with budget enforcement
 - tool output compaction with saved-token reporting
 - operator visibility through `doctor`, `status`, `memory explain`, `profile inspect`, and inspect routes
+- write-time and retrieval-time guardrails that keep metadata noise, wrapper text, and scaffold fragments out of durable memory
+- clean user-visible answers: debug annotations, retrieval scores, and internal scaffold stay in inspect paths only
 
 ## 3-minute install
 
@@ -120,6 +122,8 @@ openclaw-recall memory list
 openclaw-recall memory inspect <id>
 openclaw-recall memory search "<query>"
 openclaw-recall memory explain "<query>"
+openclaw-recall memory prune-noise --dry-run
+openclaw-recall memory prune-noise
 openclaw-recall profile list
 openclaw-recall profile inspect <runId>
 openclaw-recall session list
@@ -168,6 +172,24 @@ Important identity-related variables:
 - `OPENCLAW_RECALL_IDENTITY_ENDPOINT`
 - `OPENCLAW_RECALL_EXPORT_DIRECTORY`
 
+## Memory quality guardrails
+
+OpenClaw Recall now treats memory quality as a first-class runtime concern.
+
+- write-time filters reject sender metadata, cron/heartbeat records, control-plane labels, wrapper text, debug annotations, scaffold fragments, and low-value emotion-only lines
+- retrieval-time suppression keeps old noisy rows from dominating normal recall
+- stable collaboration preferences such as `偏直接`、`偏执行导向`、`偏中文`、`偏简洁` and structured reporting preferences are favored over one-off phrasing
+- preference and fact conflicts can supersede older rows instead of polluting recall forever
+
+If you already have old noisy rows, use:
+
+```bash
+openclaw-recall memory prune-noise --dry-run
+openclaw-recall memory prune-noise
+```
+
+`memory explain`, `memory inspect`, `doctor`, and `status` keep the debug path available without putting those internals in the normal chat response.
+
 ## Compatibility
 
 Verified for `1.0.0`:
@@ -193,7 +215,7 @@ OpenClaw Recall does not pretend every number is exact:
 - provider smoke coverage is strongest on the OpenAI Responses path
 - OpenClaw plugin CLI exposure through `openclaw <subcommand>` is still upstream-limited; use `openclaw-recall`
 - OpenClaw may emit `plugins.allow is empty` warning noise in some install/info flows
-- memory conflict resolution is still rule-based
+- memory conflict resolution is still rule-based, even though stable preference changes now supersede the most common old values
 - reconnect mode currently provides the identity/config/verify path first; fully remote memory backend implementations may still vary by deployment
 
 These are known release limitations, not blockers for normal use.

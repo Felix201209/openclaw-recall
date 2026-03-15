@@ -1,6 +1,6 @@
 import { cosineSimilarity } from "./EmbeddingProvider.js";
 import { tokenize } from "../shared/text.js";
-import { shouldSuppressMemory } from "../shared/safety.js";
+import { explainSuppressedMemory, hasStablePreferenceSignal, shouldSuppressMemory } from "../shared/safety.js";
 import { MemoryRecord } from "../types/domain.js";
 
 export class MemoryRanker {
@@ -19,14 +19,23 @@ export class MemoryRanker {
         const ttlFactor = memory.ttlDays ? Math.max(0.15, 1 - ageDays / memory.ttlDays) : 1;
         const typeBias =
           memory.kind === "preference"
-            ? 1.1
+            ? 1.55
             : memory.kind === "semantic"
-              ? 0.75
+              ? 1.05
               : memory.kind === "session_state"
-                ? 0.5
-                : 0.18;
+                ? 0.72
+                : 0.08;
         const confidence = memory.confidence ?? 0.7;
         const importance = memory.importance ?? memory.salience;
+        const stablePreferenceBoost =
+          memory.kind === "preference" && hasStablePreferenceSignal(`${memory.summary}\n${memory.content}`) ? 1.4 : 0;
+        const reusableConstraintBoost =
+          memory.kind === "session_state" &&
+          /(constraint|decision|current task|project goal|working on|prefers|must|不要|不能|约束|决定)/i.test(
+            `${memory.summary}\n${memory.content}`,
+          )
+            ? 0.9
+            : 0;
         const redundancyPenalty = memory.active === false ? 5 : 0;
         const score =
           vectorScore * 7 +
@@ -37,6 +46,8 @@ export class MemoryRanker {
           freshness * 2 +
           confidence * 1.5 +
           ttlFactor +
+          stablePreferenceBoost +
+          reusableConstraintBoost +
           typeBias -
           redundancyPenalty;
         return {
@@ -88,4 +99,11 @@ function buildReason(params: {
   return reasons.length > 0
     ? `${reasons.join(", ")} for "${params.query}".`
     : `Retrieved as a fallback contextual memory for "${params.query}".`;
+}
+
+export function explainSuppression(memory: Pick<MemoryRecord, "summary" | "content" | "kind" | "active">): string[] {
+  if (!shouldSuppressMemory(memory)) {
+    return [];
+  }
+  return explainSuppressedMemory(`${memory.summary}\n${memory.content}`);
 }

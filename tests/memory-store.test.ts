@@ -112,6 +112,44 @@ test("supersedes conflicting preference memories in the same group", async () =>
   }
 });
 
+test("supersedes Chinese preference changes in the same group", async () => {
+  const tempDir = await createTempDir("openclaw-memory-store-");
+  try {
+    const store = new MemoryStore(
+      new PluginDatabase(path.join(tempDir, "memory.sqlite")),
+      embeddingProvider,
+      0.99,
+    );
+
+    await store.upsertMany([
+      memory({
+        kind: "preference",
+        summary: "User prefers more detailed answers.",
+        content: "以后回答详细一点，展开一点。",
+        memoryGroup: "preference:detail",
+      }),
+    ]);
+
+    const result = await store.upsertMany([
+      memory({
+        kind: "preference",
+        summary: "User prefers concise terminal-first answers.",
+        content: "以后简洁一点，直接给结论。",
+        memoryGroup: "preference:detail",
+      }),
+    ]);
+
+    const active = await store.listActive();
+    assert.equal(result.written, 1);
+    assert.equal(result.superseded, 1);
+    assert.equal(active.length, 1);
+    assert.match(active[0].summary, /concise terminal-first answers/i);
+    assert.equal(active[0].version, 2);
+  } finally {
+    await cleanupTempDir(tempDir);
+  }
+});
+
 test("prunes noisy memories that were previously stored", async () => {
   const tempDir = await createTempDir("openclaw-memory-store-");
   try {
@@ -138,6 +176,32 @@ test("prunes noisy memories that were previously stored", async () => {
     assert.equal(result.pruned, 1);
     assert.equal(active.length, 1);
     assert.match(active[0].summary, /concise execution-oriented updates/i);
+  } finally {
+    await cleanupTempDir(tempDir);
+  }
+});
+
+test("supports prune-noise dry-run without mutating active memories", async () => {
+  const tempDir = await createTempDir("openclaw-memory-store-");
+  try {
+    const store = new MemoryStore(
+      new PluginDatabase(path.join(tempDir, "memory.sqlite")),
+      embeddingProvider,
+      0.92,
+    );
+
+    await store.upsertMany([
+      memory({
+        kind: "session_state",
+        summary: "transport wrapper: provider trace",
+      }),
+    ]);
+
+    const result = await store.pruneNoise({ dryRun: true });
+    const active = await store.listActive();
+    assert.equal(result.pruned, 1);
+    assert.equal(result.dryRun, true);
+    assert.equal(active.length, 1);
   } finally {
     await cleanupTempDir(tempDir);
   }

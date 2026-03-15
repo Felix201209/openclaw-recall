@@ -23,6 +23,16 @@ Assistant: ...
   assert.match(output, /简洁|偏好|terminal-first/i);
 });
 
+test("strips internal score and why annotations from assistant output", () => {
+  const output = sanitizeAssistantOutput(`我记得这些：
+- User prefers concise answers. (score=17, why=strong semantic match)
+confidence: 0.91
+why: retrieved from internal memory block`);
+
+  assert.equal(/score=|confidence:|why:/i.test(output), false);
+  assert.match(output, /concise answers/i);
+});
+
 test("strips internal scaffold and transport noise from incoming user text", () => {
   const output = sanitizeIncomingUserText(`Sender (untrusted metadata): {"label":"openclaw-control-ui"}
 

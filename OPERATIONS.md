@@ -36,8 +36,16 @@ openclaw-recall profile list
 openclaw-recall memory search "concise chinese replies"
 openclaw-recall memory explain "你记得我的偏好吗？"
 openclaw-recall memory inspect <id>
+openclaw-recall memory prune-noise --dry-run
+openclaw-recall memory prune-noise
 openclaw-recall session inspect <sessionId>
 ```
+
+What to look for:
+
+- `memory inspect` should show `active`, `supersededAt`, and `supersededBy` when a preference or fact was replaced
+- `suppressedReasons` should only appear on noisy rows in debug paths
+- normal chat replies should stay clean; scaffold/debug detail belongs in inspect commands only
 
 ## Debugging profile and compression behavior
 
@@ -76,6 +84,17 @@ openclaw-recall import status
 ```
 
 The dry-run path is recommended first. It shows what would be imported, what would be rejected as noise, and what would be merged as duplicates.
+
+## Cleaning noisy memories
+
+If earlier versions stored wrapper text, metadata, or scaffold fragments, prune them explicitly:
+
+```bash
+openclaw-recall memory prune-noise --dry-run
+openclaw-recall memory prune-noise
+```
+
+The dry-run output reports how many rows would be deactivated before any change is applied.
 
 ## Backup and export
 

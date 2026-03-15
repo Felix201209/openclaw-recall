@@ -70,16 +70,21 @@ export class MemoryStore {
       .slice(0, limit);
   }
 
-  async pruneNoise(): Promise<{ scanned: number; pruned: number; ids: string[] }> {
+  async pruneNoise(options?: {
+    dryRun?: boolean;
+  }): Promise<{ scanned: number; pruned: number; ids: string[]; dryRun: boolean }> {
     const memories = await this.listActive();
     const noisy = memories.filter((memory) => shouldSuppressMemory(memory));
-    for (const memory of noisy) {
-      this.deactivate(memory.id);
+    if (!options?.dryRun) {
+      for (const memory of noisy) {
+        this.deactivate(memory.id);
+      }
     }
     return {
       scanned: memories.length,
       pruned: noisy.length,
       ids: noisy.map((memory) => memory.id),
+      dryRun: options?.dryRun === true,
     };
   }
 
@@ -463,12 +468,21 @@ function shouldSupersede(previous: MemoryRecord, candidate: MemoryRecord): boole
   const preferenceConflict =
     (matchesAny(previousText, ["long", "detailed", "verbose"]) && matchesAny(nextText, ["concise", "short", "brief"])) ||
     (matchesAny(previousText, ["concise", "short", "brief"]) && matchesAny(nextText, ["long", "detailed", "verbose"])) ||
+    (matchesAny(previousText, ["详细", "展开", "多给细节", "长回答"]) && matchesAny(nextText, ["简洁", "简短", "精简"])) ||
+    (matchesAny(previousText, ["简洁", "简短", "精简"]) && matchesAny(nextText, ["详细", "展开", "多给细节", "长回答"])) ||
     (previousText.includes("chinese") && nextText.includes("english")) ||
-    (previousText.includes("english") && nextText.includes("chinese"));
+    (previousText.includes("english") && nextText.includes("chinese")) ||
+    (previousText.includes("中文") && nextText.includes("英文")) ||
+    (previousText.includes("英文") && nextText.includes("中文"));
   const sentimentConflict =
     (previousText.includes("likes") && nextText.includes("dislikes")) ||
     (previousText.includes("dislikes") && nextText.includes("likes"));
-  return preferenceConflict || sentimentConflict;
+  const projectFocusConflict =
+    previous.memoryGroup === "semantic:project" &&
+    previous.summary !== candidate.summary &&
+    !previousText.includes(nextText) &&
+    !nextText.includes(previousText);
+  return preferenceConflict || sentimentConflict || projectFocusConflict;
 }
 
 function matchesAny(text: string, needles: string[]): boolean {

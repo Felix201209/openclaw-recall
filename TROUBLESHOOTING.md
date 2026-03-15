@@ -74,6 +74,35 @@ If you intentionally disabled auto-write, re-enable it:
 unset OPENCLAW_RECALL_AUTO_WRITE
 ```
 
+## The assistant is recalling weird metadata or wrapper text
+
+Check:
+
+```bash
+openclaw-recall memory explain "你记得我的偏好吗？"
+openclaw-recall memory inspect <id>
+openclaw-recall memory prune-noise --dry-run
+```
+
+Fix:
+
+```bash
+openclaw-recall memory prune-noise
+```
+
+Current versions reject most metadata/control-plane noise at write time and suppress it again at retrieval time, but older stored rows may still need pruning once.
+
+## I saw internal scaffold or score text in a reply
+
+This should no longer appear on the default chat path. Internal labels such as `TASK STATE`, `RELEVANT MEMORY`, score lines, and `why:` strings are meant for inspect/debug paths only.
+
+If you still see them:
+
+1. upgrade to the latest build of the plugin
+2. rerun the conversation once
+3. inspect the stored rows with `memory inspect`
+4. export `doctor --json` and `status --json` for debugging
+
 ## Reconnect mode says identity is incomplete
 
 Cause:

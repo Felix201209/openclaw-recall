@@ -12,6 +12,7 @@ Expected result:
 
 - OpenClaw Recall writes `preference` memory rows
 - later sessions no longer need the full original transcript to recover the preference
+- `memory inspect <id>` shows a clean human-readable preference, not transport wrappers or scaffold text
 
 ## Import-first demo
 
@@ -47,6 +48,14 @@ Example clean answer shape:
 我记得你偏直接、偏执行导向，也更喜欢简洁、结构化的回复。
 ```
 
+The answer should not include:
+
+- `TASK STATE`
+- `RELEVANT MEMORY`
+- retrieval scores
+- `why:` debug strings
+- control metadata
+
 ## Tool compaction demo
 
 User message:
@@ -76,6 +85,19 @@ Success indicators:
 - `memory explain` gives ranked retrieval reasons
 - `profile list --json` shows at least one run with `promptTokensSource: "exact"`
 - `session inspect` shows tool results with `savedTokens > 0`
+
+## Noise pruning demo
+
+```bash
+openclaw-recall memory prune-noise --dry-run
+openclaw-recall memory prune-noise
+```
+
+Expected result:
+
+- old metadata/control-ui/heartbeat/scaffold rows are reported before pruning
+- the real prune pass deactivates them instead of silently deleting everything
+- later `memory explain` results stop surfacing those noisy rows
 
 ## Backup and recovery demo
 

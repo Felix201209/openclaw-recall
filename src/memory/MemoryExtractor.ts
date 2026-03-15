@@ -232,7 +232,17 @@ function uniqueByFingerprint(
 }
 
 function extractPreferenceCandidates(text: string): CandidateSeed[] {
-  const patterns: Array<{ regex: RegExp; summary: (match: RegExpMatchArray) => string; group: string }> = [
+  const patterns: Array<{
+    regex: RegExp;
+    summary: (match: RegExpMatchArray) => string;
+    group: string;
+    futureUtility?: number;
+    userSpecificity?: number;
+    repetition?: number;
+    semanticWeight?: number;
+    redundancy?: number;
+    confidence?: number;
+  }> = [
     {
       regex: /以后默认叫我(.+)/,
       summary: (match) => `User prefers to be addressed as ${sentenceFromText(match[1], 40)}.`,
@@ -262,26 +272,69 @@ function extractPreferenceCandidates(text: string): CandidateSeed[] {
       regex: /prefer chinese|use chinese|中文回答|用中文/i,
       summary: () => "User prefers Chinese responses.",
       group: "preference:language",
+      futureUtility: 3.8,
+      userSpecificity: 3.2,
+      semanticWeight: 2.5,
+      confidence: 0.94,
     },
     {
-      regex: /concise|简洁|直接|terminal-first/i,
+      regex: /concise|简洁|简短|精简|直接|terminal-first/i,
       summary: () => "User prefers concise terminal-first answers.",
       group: "preference:style",
+      futureUtility: 3.7,
+      userSpecificity: 3.1,
+      repetition: 1.1,
+      semanticWeight: 2.4,
+      confidence: 0.93,
     },
     {
-      regex: /直接给结果|执行导向|可执行|短.?准.?可执行/i,
+      regex: /直接给结果|执行导向|可执行|短.?准.?可执行|先给结论|先说结论/i,
       summary: () => "User prefers direct, execution-oriented answers.",
       group: "preference:style",
+      futureUtility: 3.9,
+      userSpecificity: 3.2,
+      repetition: 1.0,
+      semanticWeight: 2.4,
+      confidence: 0.94,
     },
     {
       regex: /结构化输出|结构化汇报|结论.{0,8}进度.{0,8}风险.{0,8}下一步|已完成.{0,8}未完成.{0,8}下一步/i,
       summary: () => "User prefers structured updates with conclusion, progress, risk, and next steps.",
       group: "preference:format",
+      futureUtility: 3.9,
+      userSpecificity: 3.0,
+      repetition: 1.0,
+      semanticWeight: 2.5,
+      confidence: 0.95,
     },
     {
       regex: /不喜欢空话|模板废话|别再.*空话/i,
       summary: () => "User dislikes vague or filler-heavy answers.",
       group: "preference:style",
+      futureUtility: 3.6,
+      userSpecificity: 2.8,
+      repetition: 0.9,
+      semanticWeight: 2.2,
+      confidence: 0.91,
+    },
+    {
+      regex: /详细一点|展开一点|多给细节|更详细/i,
+      summary: () => "User prefers more detailed answers.",
+      group: "preference:detail",
+      futureUtility: 3.7,
+      userSpecificity: 3.1,
+      repetition: 1.0,
+      semanticWeight: 2.3,
+      confidence: 0.92,
+    },
+    {
+      regex: /以后.*用英文|英文回答|prefer english|use english/i,
+      summary: () => "User prefers English responses.",
+      group: "preference:language",
+      futureUtility: 3.7,
+      userSpecificity: 3.1,
+      semanticWeight: 2.5,
+      confidence: 0.93,
     },
   ];
 
@@ -298,12 +351,12 @@ function extractPreferenceCandidates(text: string): CandidateSeed[] {
           content: text,
           ttlDays: undefined,
           decayRate: 0.01,
-          futureUtility: 3.4,
-          userSpecificity: 3.0,
-          repetition: 1.0,
-          semanticWeight: 2.2,
-          redundancy: 0.4,
-          confidence: 0.9,
+          futureUtility: pattern.futureUtility ?? 3.4,
+          userSpecificity: pattern.userSpecificity ?? 3.0,
+          repetition: pattern.repetition ?? 1.0,
+          semanticWeight: pattern.semanticWeight ?? 2.2,
+          redundancy: pattern.redundancy ?? 0.35,
+          confidence: pattern.confidence ?? 0.9,
           memoryGroup: pattern.group,
         },
       ];

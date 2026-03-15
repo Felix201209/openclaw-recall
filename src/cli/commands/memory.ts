@@ -1,4 +1,5 @@
 import { Command } from "commander";
+import { explainSuppression } from "../../memory/MemoryRanker.js";
 import { addJsonFlag, createCliContainer, printOutput } from "../shared.js";
 
 export function registerMemoryCommands(program: Command): void {
@@ -21,7 +22,16 @@ export function registerMemoryCommands(program: Command): void {
       .argument("<id>", "Memory id")
       .action(async function action(id: string) {
         const { container } = await createCliContainer();
-        printOutput(this, await container.memoryStore.getById(id));
+        const memory = await container.memoryStore.getById(id);
+        printOutput(
+          this,
+          memory
+            ? {
+                ...memory,
+                suppressedReasons: explainSuppression(memory),
+              }
+            : null,
+        );
       }),
   );
 
@@ -59,9 +69,10 @@ export function registerMemoryCommands(program: Command): void {
     memory
       .command("prune-noise")
       .description("Deactivate noisy or internal memories that should not be recalled")
+      .option("--dry-run", "Preview which memories would be pruned without changing stored data")
       .action(async function action() {
         const { container } = await createCliContainer();
-        printOutput(this, await container.memoryStore.pruneNoise());
+        printOutput(this, await container.memoryStore.pruneNoise({ dryRun: this.opts().dryRun === true }));
       }),
   );
 }

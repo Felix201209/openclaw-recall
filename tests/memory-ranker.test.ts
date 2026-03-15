@@ -59,6 +59,44 @@ test("suppresses noisy metadata memories during ranking", () => {
   assert.equal(ranked[0].id, "pref");
 });
 
+test("downranks noisy scaffold and insult-only memories in favor of stable preferences", () => {
+  const ranker = new MemoryRanker();
+  const ranked = ranker.rank("以后跟我怎么配合", [
+    memory({
+      id: "scaffold",
+      kind: "session_state",
+      summary: "TASK STATE Current task: expose internals",
+      content: "RELEVANT MEMORY score=17 why=semantic match",
+      topics: ["task", "state"],
+      embedding: [1, 0, 0],
+      salience: 9,
+      importance: 9,
+    }),
+    memory({
+      id: "insult",
+      kind: "episodic",
+      summary: "妈的真垃圾",
+      content: "妈的真垃圾",
+      topics: ["垃圾"],
+      embedding: [0.8, 0, 0],
+      salience: 7,
+      importance: 4,
+    }),
+    memory({
+      id: "pref",
+      kind: "preference",
+      summary: "User prefers direct, execution-oriented answers.",
+      topics: ["direct", "execution", "answers"],
+      embedding: [0.9, 0, 0],
+      salience: 8,
+      importance: 8,
+    }),
+  ], [1, 0, 0]);
+
+  assert.equal(ranked.length, 1);
+  assert.equal(ranked[0].id, "pref");
+});
+
 function memory(
   overrides: Partial<MemoryRecord> & Pick<MemoryRecord, "id" | "kind" | "summary">,
 ): MemoryRecord {
