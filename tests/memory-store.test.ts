@@ -19,6 +19,7 @@ const embeddingProvider = createEmbeddingProvider({
     dimensions: 256,
   },
   memory: {
+    autoWrite: true,
     topK: 6,
     bootTopK: 4,
     maxWritesPerTurn: 6,

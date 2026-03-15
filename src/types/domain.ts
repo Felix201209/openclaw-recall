@@ -138,19 +138,26 @@ export interface DoctorReport {
   checks: DoctorCheck[];
 }
 
+export type MetricSource = "exact" | "estimated" | "unavailable";
+
 export interface TurnProfile {
   runId: string;
   sessionId: string;
   createdAt: string;
   promptTokens: number;
+  promptTokensSource: MetricSource;
   promptBudget: number;
   memoryInjected: number;
   memoryCandidates: number;
   memoryWritten: number;
   toolTokens: number;
+  toolTokensSource: MetricSource;
   toolTokensSaved: number;
+  toolTokensSavedSource: MetricSource;
   historySummaryTokens: number;
+  historySummaryTokensSource: MetricSource;
   compressionSavings: number;
+  compressionSavingsSource: MetricSource;
   retrievalCount: number;
 }
 

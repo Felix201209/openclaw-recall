@@ -11,6 +11,7 @@ export function registerStatusCommands(program: Command): void {
       const latestProfile = profiles[0] ?? null;
       printOutput(this, {
         enabled,
+        autoWriteEnabled: resolved.memory.autoWrite,
         openclawHome,
         databasePath: container.database.path,
         embeddingProvider: resolved.embedding.provider,
@@ -23,6 +24,8 @@ export function registerStatusCommands(program: Command): void {
         recentRetrievalCount: latestProfile?.retrievalCount ?? 0,
         recentCompressionSavings: latestProfile?.compressionSavings ?? 0,
         recentMemoryWrites: latestProfile?.memoryWritten ?? 0,
+        lastError:
+          typeof latestProfile?.details?.error === "string" ? latestProfile.details.error : null,
         latestSession: sessions[0] ?? null,
         latestProfile,
       });

@@ -21,6 +21,7 @@ openclaw plugins install --link .
 openclaw plugins info openclaw-memory-plugin
 openclaw-memory-plugin doctor
 openclaw-memory-plugin status
+npm run demo
 ```
 
 ## What each step does
@@ -37,6 +38,8 @@ openclaw-memory-plugin status
    checks config, storage, embeddings, inspect path, and recent runtime evidence.
 6. `openclaw-memory-plugin status`
    shows current memory/profile/session counts and latest run activity.
+7. `npm run demo`
+   proves automatic memory write, cross-session recall, tool compaction, and profile capture.
 
 ## Optional: write a starter config entry
 
@@ -91,3 +94,23 @@ This runs:
 - unit tests
 - embedded integration test
 - install-path integration test
+
+## Release-grade validation
+
+```bash
+npm run verify
+```
+
+This additionally checks:
+
+- tarball contents are clean
+- install-from-tarball works in a fresh consumer directory
+- the installed package can be linked into OpenClaw
+- the installed CLI can run doctor/status/session inspect
+
+## What success looks like
+
+- `openclaw plugins info openclaw-memory-plugin` shows `Status: loaded`
+- `openclaw-memory-plugin doctor` has no `fail` checks
+- `openclaw-memory-plugin status` shows non-zero `memoryCount` and `profileCount` after the demo
+- `openclaw-memory-plugin profile list --json` shows `promptTokensSource: "exact"` on provider paths that return usage

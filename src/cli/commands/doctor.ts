@@ -1,9 +1,11 @@
 import fs from "node:fs";
 import fsPromises from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { Command } from "commander";
 import { addJsonFlag, createCliContainer, printOutput } from "../shared.js";
 import type { DoctorReport } from "../../types/domain.js";
+import { listPluginEnvOverrides } from "../../config/loader.js";
 
 export function registerDoctorCommands(program: Command): void {
   addJsonFlag(
@@ -17,8 +19,20 @@ export function registerDoctorCommands(program: Command): void {
       const toolResults = sessions[0]
         ? await container.toolOutputStore.listSession(sessions[0].sessionId, 10)
         : [];
+      const packageRoot = resolvePackageRoot();
+      const packageJson = await readJson(path.join(packageRoot, "package.json"));
+      const pluginManifest = await readJson(path.join(packageRoot, "openclaw.plugin.json"));
+      const buildIntegrity =
+        fs.existsSync(path.join(packageRoot, "dist", "src", "plugin", "index.js")) &&
+        fs.existsSync(path.join(packageRoot, "dist", "src", "cli", "index.js"));
+      const manifestValid =
+        packageJson?.name === "openclaw-memory-plugin" &&
+        pluginManifest?.id === "openclaw-memory-plugin" &&
+        typeof packageJson?.version === "string" &&
+        packageJson.version === pluginManifest?.version;
       const writable = await isWritable(path.dirname(container.database.path));
       const sqliteHealthy = isSqliteHealthy(container.database);
+      const envOverrides = listPluginEnvOverrides();
       const promptLayers = Array.isArray(latestProfile?.details?.promptLayers)
         ? (latestProfile?.details?.promptLayers as Array<Record<string, unknown>>)
         : [];
@@ -37,11 +51,38 @@ export function registerDoctorCommands(program: Command): void {
             detail: configExists ? `Found ${configPath}` : `No config found at ${configPath}`,
           },
           {
+            name: "plugin manifest",
+            status: manifestValid ? "pass" : "fail",
+            detail: manifestValid
+              ? `package.json and openclaw.plugin.json agree on id/version (${packageJson?.version ?? "unknown"})`
+              : "Package manifest and plugin manifest are missing or inconsistent",
+          },
+          {
+            name: "build integrity",
+            status: buildIntegrity ? "pass" : "fail",
+            detail: buildIntegrity
+              ? "Built plugin and CLI entrypoints are present in dist/"
+              : "Missing dist plugin or CLI entrypoint; run npm run build",
+          },
+          {
             name: "plugin enabled",
             status: enabled ? "pass" : "warn",
             detail: enabled
               ? "plugins.entries.openclaw-memory-plugin.enabled is active or defaults to true"
               : "Plugin entry is disabled in OpenClaw config",
+          },
+          {
+            name: "config parse",
+            status: "pass",
+            detail: `Resolved plugin config from ${configExists ? configPath : "defaults/env only"}`,
+          },
+          {
+            name: "env/config precedence",
+            status: envOverrides.length > 0 ? "warn" : "pass",
+            detail:
+              envOverrides.length > 0
+                ? `Environment overrides active: ${envOverrides.join(", ")}`
+                : "No env overrides detected; config comes from openclaw.json + defaults",
           },
           {
             name: "database path",
@@ -73,11 +114,18 @@ export function registerDoctorCommands(program: Command): void {
           },
           {
             name: "memory pipeline",
-            status: memories.length > 0 || (latestProfile?.memoryWritten ?? 0) > 0 ? "pass" : "warn",
+            status:
+              resolved.memory.autoWrite === false
+                ? "warn"
+                : memories.length > 0 || (latestProfile?.memoryWritten ?? 0) > 0
+                  ? "pass"
+                  : "warn",
             detail:
-              memories.length > 0
-                ? `${memories.length} active memories stored`
-                : "No memory writes recorded yet",
+              resolved.memory.autoWrite === false
+                ? "Automatic memory writes are disabled by config"
+                : memories.length > 0
+                  ? `${memories.length} active memories stored`
+                  : "No memory writes recorded yet",
           },
           {
             name: "retrieval pipeline",
@@ -93,7 +141,7 @@ export function registerDoctorCommands(program: Command): void {
               (latestProfile?.compressionSavings ?? 0) > 0 || hasCompressionLayer ? "pass" : "warn",
             detail:
               latestProfile
-                ? `Latest savings=${latestProfile.compressionSavings}, layers=${promptLayers.length}`
+                ? `Latest savings=${latestProfile.compressionSavings} (${latestProfile.compressionSavingsSource}), layers=${promptLayers.length}`
                 : "No compression profile recorded yet",
           },
           {
@@ -104,11 +152,30 @@ export function registerDoctorCommands(program: Command): void {
                 ? `Recent session has ${toolResults.length} compacted tool outputs`
                 : "No compacted tool outputs recorded yet",
           },
+          {
+            name: "profile path",
+            status: latestProfile ? "pass" : "warn",
+            detail: latestProfile
+              ? `Latest profile=${latestProfile.runId}, prompt=${latestProfile.promptTokens} (${latestProfile.promptTokensSource})`
+              : "No prompt profiles recorded yet",
+          },
         ],
       };
       printOutput(this, report);
     }),
   );
+}
+
+function resolvePackageRoot(): string {
+  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../");
+}
+
+async function readJson(filePath: string): Promise<Record<string, unknown> | null> {
+  try {
+    return JSON.parse(await fsPromises.readFile(filePath, "utf8")) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
 }
 
 async function isWritable(dirPath: string): Promise<boolean> {

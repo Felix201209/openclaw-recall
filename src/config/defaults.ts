@@ -10,10 +10,11 @@ export const defaultPluginConfig = {
     dimensions: 256,
   },
   memory: {
+    autoWrite: true,
     topK: 6,
     bootTopK: 4,
     maxWritesPerTurn: 6,
-    dedupeSimilarity: 0.95,
+    dedupeSimilarity: 0.92,
     writeThreshold: 5.2,
     preferenceTtlDays: 180,
     semanticTtlDays: 120,

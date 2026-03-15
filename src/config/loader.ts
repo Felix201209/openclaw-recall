@@ -61,6 +61,10 @@ export function resolvePluginConfig(params: {
         defaultPluginConfig.embedding.dimensions,
     },
     memory: {
+      autoWrite:
+        parseBoolean(env.OPENCLAW_MEMORY_PLUGIN_AUTO_WRITE) ??
+        pluginConfig.memory?.autoWrite ??
+        defaultPluginConfig.memory.autoWrite,
       topK:
         parseNumber(env.OPENCLAW_MEMORY_PLUGIN_MEMORY_TOP_K) ??
         pluginConfig.memory?.topK ??

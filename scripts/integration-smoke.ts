@@ -114,11 +114,14 @@ try {
     sessionId: "plugin-smoke-2",
   });
   const profiles = await container.profileStore.list(10);
+  const latestProfile = profiles[0] ?? null;
   const toolResults = await container.toolOutputStore.listSession("plugin-smoke-3", 10);
 
   assert(memories.some((memory) => /Chinese|中文|concise|简洁/i.test(memory.summary)), "expected preference memory to be written");
   assert(explained.some((memory) => /preference/i.test(memory.kind)), "expected preference memory to be retrieved");
   assert(profiles.length >= 2, "expected prompt profiles to be recorded");
+  assert.equal(latestProfile?.promptTokensSource, "exact", "expected provider usage to produce exact prompt token counts");
+  assert.equal(latestProfile?.compressionSavingsSource, "estimated", "expected compression savings to remain estimated");
   assert(toolResults.length >= 1, "expected tool compaction output to be stored");
   assert(toolResults.some((result) => (result.savedTokens ?? 0) > 0), "expected tool compaction to save tokens");
 
@@ -130,6 +133,7 @@ try {
         memoryCount: memories.length,
         profileCount: profiles.length,
         toolCompactions: toolResults.length,
+        latestProfile,
       },
       null,
       2,

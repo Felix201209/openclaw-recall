@@ -24,7 +24,7 @@ export function renderDashboard(params: {
     .slice(0, 12)
     .map(
       (profile) =>
-        `<tr><td>${escapeHtml(profile.runId)}</td><td>${profile.promptTokens}</td><td>${profile.compressionSavings}</td><td>${profile.retrievalCount}</td></tr>`,
+        `<tr><td>${escapeHtml(profile.runId)}</td><td>${profile.promptTokens} <code>${profile.promptTokensSource}</code></td><td>${profile.compressionSavings} <code>${profile.compressionSavingsSource}</code></td><td>${profile.retrievalCount}</td></tr>`,
     )
     .join("");
 

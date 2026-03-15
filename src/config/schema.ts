@@ -13,6 +13,7 @@ export type OpenClawMemoryPluginConfig = {
     dimensions?: number;
   };
   memory?: {
+    autoWrite?: boolean;
     topK?: number;
     bootTopK?: number;
     maxWritesPerTurn?: number;
@@ -50,6 +51,7 @@ export type ResolvedPluginConfig = {
     dimensions: number;
   };
   memory: {
+    autoWrite: boolean;
     topK: number;
     bootTopK: number;
     maxWritesPerTurn: number;
@@ -96,6 +98,7 @@ export const pluginConfigSchema = {
       type: "object",
       additionalProperties: false,
       properties: {
+        autoWrite: { type: "boolean" },
         topK: { type: "number", minimum: 1, maximum: 20 },
         bootTopK: { type: "number", minimum: 1, maximum: 20 },
         maxWritesPerTurn: { type: "number", minimum: 1, maximum: 20 },

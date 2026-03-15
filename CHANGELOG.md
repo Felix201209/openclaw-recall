@@ -10,6 +10,10 @@
 - added config init and config validate flows
 - added inspect dashboard and JSON inspect endpoints
 - added release build tarball generation
+- added tarball sanity and install-from-tarball verification
+- added exact-vs-estimated metric source reporting for prompt and savings data
+- added stronger doctor/status checks for manifest/build/preference precedence and recent runtime evidence
+- added optional `memory.autoWrite` toggle for operational control without uninstalling the plugin
 
 ## 0.1.0
 

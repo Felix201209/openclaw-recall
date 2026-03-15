@@ -19,7 +19,16 @@
     }
   },
   "files": [
-    "dist",
+    "dist/src/cli",
+    "dist/src/compression",
+    "dist/src/config",
+    "dist/src/inspect",
+    "dist/src/memory",
+    "dist/src/plugin",
+    "dist/src/profiling",
+    "dist/src/shared",
+    "dist/src/storage",
+    "dist/src/types",
     "README.md",
     "QUICKSTART.md",
     "ARCHITECTURE.md",
@@ -27,6 +36,7 @@
     "OPENCLAW-INTEGRATION.md",
     "OPERATIONS.md",
     "TROUBLESHOOTING.md",
+    "RELEASE_NOTES.md",
     "CHANGELOG.md",
     "PLUGIN-EXTRACTION-PLAN.md",
     "NOTICE",
@@ -48,9 +58,11 @@
     "test:unit": "tsx --test tests/**/*.test.ts",
     "test:integration": "tsx scripts/integration-smoke.ts",
     "test:install": "tsx scripts/install-smoke.ts",
+    "test:tarball:sanity": "tsx scripts/tarball-sanity.ts",
+    "test:tarball": "tsx scripts/tarball-smoke.ts",
     "test": "npm run test:unit && npm run test:integration && npm run test:install",
     "smoke": "npm run check && npm run build && npm run test",
-    "verify": "npm run smoke && npm run release:build",
+    "verify": "npm run smoke && npm run release:build && npm run test:tarball:sanity && npm run test:tarball",
     "release:build": "npm run build && mkdir -p .release && npm pack --pack-destination ./.release"
   },
   "keywords": [
@@ -65,6 +77,9 @@
   ],
   "author": "Felix",
   "license": "MIT",
+  "engines": {
+    "node": ">=24.0.0"
+  },
   "peerDependencies": {
     "openclaw": ">=2026.3.13"
   },

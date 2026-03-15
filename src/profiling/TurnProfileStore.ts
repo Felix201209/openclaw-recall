@@ -12,29 +12,39 @@ export class TurnProfileStore {
           session_id,
           created_at,
           prompt_tokens,
+          prompt_tokens_source,
           prompt_budget,
           memory_injected,
           memory_candidates,
           memory_written,
           tool_tokens,
+          tool_tokens_source,
           tool_tokens_saved,
+          tool_tokens_saved_source,
           history_summary_tokens,
+          history_summary_tokens_source,
           compression_savings,
+          compression_savings_source,
           retrieval_count,
           details_json
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(run_id) DO UPDATE SET
           session_id = excluded.session_id,
           created_at = excluded.created_at,
           prompt_tokens = excluded.prompt_tokens,
+          prompt_tokens_source = excluded.prompt_tokens_source,
           prompt_budget = excluded.prompt_budget,
           memory_injected = excluded.memory_injected,
           memory_candidates = excluded.memory_candidates,
           memory_written = excluded.memory_written,
           tool_tokens = excluded.tool_tokens,
+          tool_tokens_source = excluded.tool_tokens_source,
           tool_tokens_saved = excluded.tool_tokens_saved,
+          tool_tokens_saved_source = excluded.tool_tokens_saved_source,
           history_summary_tokens = excluded.history_summary_tokens,
+          history_summary_tokens_source = excluded.history_summary_tokens_source,
           compression_savings = excluded.compression_savings,
+          compression_savings_source = excluded.compression_savings_source,
           retrieval_count = excluded.retrieval_count,
           details_json = excluded.details_json
       `)
@@ -43,14 +53,19 @@ export class TurnProfileStore {
         profile.sessionId,
         new Date(profile.createdAt).getTime(),
         profile.promptTokens,
+        profile.promptTokensSource,
         profile.promptBudget,
         profile.memoryInjected,
         profile.memoryCandidates,
         profile.memoryWritten,
         profile.toolTokens,
+        profile.toolTokensSource,
         profile.toolTokensSaved,
+        profile.toolTokensSavedSource,
         profile.historySummaryTokens,
+        profile.historySummaryTokensSource,
         profile.compressionSavings,
+        profile.compressionSavingsSource,
         profile.retrievalCount,
         JSON.stringify(details),
       );
@@ -115,14 +130,19 @@ export class TurnProfileStore {
       sessionId: row.session_id,
       createdAt: new Date(row.created_at).toISOString(),
       promptTokens: row.prompt_tokens,
+      promptTokensSource: row.prompt_tokens_source ?? "estimated",
       promptBudget: row.prompt_budget,
       memoryInjected: row.memory_injected,
       memoryCandidates: row.memory_candidates,
       memoryWritten: row.memory_written,
       toolTokens: row.tool_tokens,
+      toolTokensSource: row.tool_tokens_source ?? "estimated",
       toolTokensSaved: row.tool_tokens_saved,
+      toolTokensSavedSource: row.tool_tokens_saved_source ?? "estimated",
       historySummaryTokens: row.history_summary_tokens,
+      historySummaryTokensSource: row.history_summary_tokens_source ?? "estimated",
       compressionSavings: row.compression_savings,
+      compressionSavingsSource: row.compression_savings_source ?? "estimated",
       retrievalCount: row.retrieval_count,
       details: safeJson(row.details_json),
     };
@@ -134,14 +154,19 @@ type TurnProfileRow = {
   session_id: string;
   created_at: number;
   prompt_tokens: number;
+  prompt_tokens_source?: "exact" | "estimated" | "unavailable";
   prompt_budget: number;
   memory_injected: number;
   memory_candidates: number;
   memory_written: number;
   tool_tokens: number;
+  tool_tokens_source?: "exact" | "estimated" | "unavailable";
   tool_tokens_saved: number;
+  tool_tokens_saved_source?: "exact" | "estimated" | "unavailable";
   history_summary_tokens: number;
+  history_summary_tokens_source?: "exact" | "estimated" | "unavailable";
   compression_savings: number;
+  compression_savings_source?: "exact" | "estimated" | "unavailable";
   retrieval_count: number;
   details_json: string;
 };

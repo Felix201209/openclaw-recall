@@ -104,10 +104,12 @@ try {
 
   const memories = await container.memoryStore.listActive();
   const profiles = await container.profileStore.list(10);
+  const latestProfile = profiles[0] ?? null;
   const toolResults = await container.toolOutputStore.listSession("install-smoke-3", 10);
 
   assert(memories.length >= 2, "expected installed plugin to write memories");
   assert(profiles.length >= 2, "expected installed plugin to record profiles");
+  assert.equal(latestProfile?.promptTokensSource, "exact", "expected provider usage to produce exact prompt token counts");
   assert(toolResults.some((result) => (result.savedTokens ?? 0) > 0), "expected tool compaction savings");
   assert(
     (recall.payloads ?? []).some((payload) => /中文|简洁|Felix/i.test(payload.text ?? "")),
@@ -123,6 +125,7 @@ try {
         memoryCount: memories.length,
         profileCount: profiles.length,
         toolCompactions: toolResults.length,
+        latestProfile,
       },
       null,
       2,
@@ -145,8 +148,13 @@ function runOpenClaw(args: string[], home: string): void {
 }
 
 function withModelConfig(installedConfig: Record<string, unknown>): Record<string, unknown> {
+  const plugins = (installedConfig.plugins ?? {}) as Record<string, unknown>;
   return {
     ...installedConfig,
+    plugins: {
+      ...plugins,
+      allow: ["openclaw-memory-plugin"],
+    },
     models: {
       providers: {
         openai: {

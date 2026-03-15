@@ -75,6 +75,12 @@ That path checks:
 
 Full setup details are in [QUICKSTART.md](/Users/felix/Documents/openclaw-memory-plugin/QUICKSTART.md).
 
+For a full release-grade validation path, including tarball install verification:
+
+```bash
+npm run verify
+```
+
 ## Smallest demo
 
 This repository includes a scripted demo:
@@ -168,6 +174,7 @@ The default strategy is tuned for usefulness without forcing heavy setup:
 - local hashed embeddings by default
 - preference memory gets longest TTL
 - episodic memory decays fastest
+- automatic memory writes are enabled by default but can be disabled with `OPENCLAW_MEMORY_PLUGIN_AUTO_WRITE=false`
 - prompt budget defaults to `2400`
 - recent turn window defaults to `6`
 - older history summary starts once turn count crosses threshold
@@ -214,6 +221,29 @@ The package exports:
 - types
 - docs and notices required for install/use
 
+## Compatibility
+
+Verified in this release-hardening pass:
+
+- Node.js `24.12.0`
+- OpenClaw npm package `2026.3.13`
+- OpenAI Responses provider path for exact prompt token accounting
+- local hashed embeddings as the default embedding mode
+
+Supported but not yet covered by automated smoke in this release:
+
+- OpenAI-compatible embedding endpoint via `embedding.provider=openai`
+
+## Token accuracy
+
+The plugin now distinguishes metric quality explicitly:
+
+- `promptTokensSource=exact` when the provider returns input token usage
+- `promptTokensSource=estimated` when provider usage is unavailable
+- `toolTokensSavedSource=estimated` and `compressionSavingsSource=estimated` when savings come from heuristic compression math
+
+The plugin does not pretend savings are exact when they are not.
+
 ## Attribution
 
 This plugin targets the OpenClaw plugin SDK and runtime integration model. The enhancement logic in this repository was extracted and adapted from the earlier NovaClaw prototype work rather than continuing as a replacement product.
@@ -223,12 +253,13 @@ Relevant docs:
 - [PLUGIN-EXTRACTION-PLAN.md](/Users/felix/Documents/openclaw-memory-plugin/PLUGIN-EXTRACTION-PLAN.md)
 - [NOTICE](/Users/felix/Documents/openclaw-memory-plugin/NOTICE)
 - [THIRD_PARTY_NOTICES.md](/Users/felix/Documents/openclaw-memory-plugin/THIRD_PARTY_NOTICES.md)
+- [RELEASE_NOTES.md](/Users/felix/Documents/openclaw-memory-plugin/RELEASE_NOTES.md)
 
 ## Short roadmap
 
 The current plugin is installable and release-ready. The next highest-value upgrades are:
 
-- tokenizer-exact budgeting
+- broader tokenizer-exact budgeting beyond provider-reported prompt usage
 - stronger semantic conflict resolution
 - richer inspect dashboards
 - user-controlled memory editing

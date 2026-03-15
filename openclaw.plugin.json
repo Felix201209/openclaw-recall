@@ -22,6 +22,10 @@
       "label": "Write Threshold",
       "help": "Minimum importance score required before a candidate memory is persisted."
     },
+    "memory.autoWrite": {
+      "label": "Automatic Memory Writes",
+      "help": "When disabled, the plugin still profiles and retrieves memory but does not persist new memories automatically."
+    },
     "inspect.httpPath": {
       "label": "Inspect HTTP Path",
       "help": "Gateway-authenticated plugin route prefix for inspect endpoints."
@@ -48,6 +52,7 @@
         "type": "object",
         "additionalProperties": false,
         "properties": {
+          "autoWrite": { "type": "boolean" },
           "topK": { "type": "number", "minimum": 1, "maximum": 20 },
           "bootTopK": { "type": "number", "minimum": 1, "maximum": 20 },
           "maxWritesPerTurn": { "type": "number", "minimum": 1, "maximum": 20 },

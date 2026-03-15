@@ -66,6 +66,12 @@ openclaw-memory-plugin config init --write-openclaw
 openclaw-memory-plugin config validate
 ```
 
+Temporarily disable automatic memory writes without uninstalling the plugin:
+
+```bash
+OPENCLAW_MEMORY_PLUGIN_AUTO_WRITE=false
+```
+
 ## Hook behavior
 
 ### `before_prompt_build`
@@ -134,4 +140,18 @@ Endpoints:
 
 - The operational CLI for this plugin is the standalone `openclaw-memory-plugin` binary. OpenClaw plugin metadata can advertise CLI commands, but current OpenClaw command parsing does not expose the plugin's command tree as a top-level `openclaw` subcommand during early argument parsing.
 - Embeddings default to local hashed vectors to avoid forcing external dependencies. OpenAI-compatible embeddings are optional.
-- Token budgeting uses estimate-based token accounting rather than provider-native tokenizer APIs.
+- Prompt token accounting can be `exact` when the provider emits usage metadata. Compression savings and tool compaction savings remain `estimated`.
+- Some OpenClaw install/info flows may emit a `plugins.allow is empty` warning before your config is fully written. This is runtime noise, not a plugin failure.
+
+## Compatibility matrix
+
+Verified in this repository:
+
+- Node.js `24.12.0`
+- OpenClaw npm package `2026.3.13`
+- OpenAI Responses path for runtime execution
+- local hashed embeddings as default mode
+
+Supported but not smoke-tested in this release:
+
+- OpenAI-compatible embeddings via `embedding.provider=openai`

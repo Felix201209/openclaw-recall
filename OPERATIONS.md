@@ -16,11 +16,15 @@ openclaw-memory-plugin profile list
 - database path, writability, and SQLite query health
 - embedding availability
 - inspect route path
+- package/plugin manifest integrity
+- build integrity
+- env/config precedence warnings
 - recent hook activity
 - memory pipeline activity
 - retrieval pipeline activity
 - compression pipeline activity
 - recent tool compaction evidence
+- recent profile path integrity
 
 ## Debugging memory behavior
 
@@ -53,10 +57,15 @@ openclaw-memory-plugin profile inspect <runId>
 Look for:
 
 - `promptTokens`
+- `promptTokensSource`
 - `memoryInjected`
 - `toolTokensSaved`
+- `toolTokensSavedSource`
 - `compressionSavings`
+- `compressionSavingsSource`
 - `retrievalCount`
+
+If `promptTokensSource=exact`, the provider reported real usage. Savings values remain `estimated` until a provider-native tokenizer path is added.
 
 ## Inspect HTTP surface
 
@@ -73,6 +82,16 @@ Use the authenticated OpenClaw route:
 ```bash
 openclaw plugins disable openclaw-memory-plugin
 ```
+
+### Disable automatic memory writes only
+
+Keep the plugin loaded but stop persisting new memories:
+
+```bash
+OPENCLAW_MEMORY_PLUGIN_AUTO_WRITE=false
+```
+
+This still allows retrieval, tool compaction, inspect routes, and profile recording.
 
 ### Re-enable
 
@@ -93,6 +112,15 @@ This clears stored memories, profiles, and tool compactions for the plugin only.
 ### Remove one session's recorded data
 
 Use the standalone CLI to inspect sessions via the dashboard or remove rows manually from the plugin SQLite database if you are doing a recovery task. Session state, transcript rows, tool outputs, and turn profiles are scoped by `session_id`.
+
+### Export debug evidence
+
+```bash
+openclaw-memory-plugin doctor --json > doctor.json
+openclaw-memory-plugin status --json > status.json
+openclaw-memory-plugin session inspect <sessionId> --json > session.json
+openclaw-memory-plugin profile inspect <runId> --json > profile.json
+```
 
 ## SQLite notes
 

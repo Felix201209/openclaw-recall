@@ -28,6 +28,7 @@ Expected behavior:
 - plugin retrieves prior preference memories
 - prompt build injects `RELEVANT MEMORY`
 - assistant can answer without full transcript replay
+- resulting profile should show `promptTokensSource: "exact"` on provider paths that return usage
 
 Example output from the repository demo:
 
@@ -48,6 +49,7 @@ Expected behavior:
 - raw payload is compacted
 - profile records `toolTokensSaved`
 - stored tool output remains inspectable
+- `toolTokensSavedSource` remains `estimated`, not fake-exact
 
 Example result excerpt:
 
@@ -64,6 +66,13 @@ openclaw-memory-plugin profile list
 openclaw-memory-plugin session inspect plugin-smoke-3
 ```
 
+Success indicators:
+
+- `memory list` contains preference rows mentioning Felix / Chinese / concise
+- `memory explain` gives a ranked reason for retrieval
+- `profile list --json` shows at least one run with `promptTokensSource: "exact"`
+- `session inspect` shows tool results with `savedTokens > 0`
+
 ## Sample status output
 
 ```json
@@ -74,7 +83,11 @@ openclaw-memory-plugin session inspect plugin-smoke-3
   "sessionCount": 3,
   "recentRetrievalCount": 3,
   "recentCompressionSavings": 207,
-  "recentMemoryWrites": 0
+  "recentMemoryWrites": 0,
+  "latestProfile": {
+    "promptTokensSource": "exact",
+    "compressionSavingsSource": "estimated"
+  }
 }
 ```
 

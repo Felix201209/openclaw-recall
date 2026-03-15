@@ -94,14 +94,19 @@ export class PluginDatabase {
         session_id TEXT NOT NULL,
         created_at INTEGER NOT NULL,
         prompt_tokens INTEGER NOT NULL,
+        prompt_tokens_source TEXT NOT NULL DEFAULT 'estimated',
         prompt_budget INTEGER NOT NULL,
         memory_injected INTEGER NOT NULL,
         memory_candidates INTEGER NOT NULL,
         memory_written INTEGER NOT NULL,
         tool_tokens INTEGER NOT NULL,
+        tool_tokens_source TEXT NOT NULL DEFAULT 'estimated',
         tool_tokens_saved INTEGER NOT NULL,
+        tool_tokens_saved_source TEXT NOT NULL DEFAULT 'estimated',
         history_summary_tokens INTEGER NOT NULL,
+        history_summary_tokens_source TEXT NOT NULL DEFAULT 'estimated',
         compression_savings INTEGER NOT NULL,
+        compression_savings_source TEXT NOT NULL DEFAULT 'estimated',
         retrieval_count INTEGER NOT NULL,
         details_json TEXT NOT NULL
       );
@@ -115,6 +120,19 @@ export class PluginDatabase {
       CREATE INDEX IF NOT EXISTS idx_turn_profiles_session ON turn_profiles(session_id, created_at DESC);
     `);
     this.ensureColumn("memories", "meta_json", "TEXT");
+    this.ensureColumn("turn_profiles", "prompt_tokens_source", "TEXT NOT NULL DEFAULT 'estimated'");
+    this.ensureColumn("turn_profiles", "tool_tokens_source", "TEXT NOT NULL DEFAULT 'estimated'");
+    this.ensureColumn("turn_profiles", "tool_tokens_saved_source", "TEXT NOT NULL DEFAULT 'estimated'");
+    this.ensureColumn(
+      "turn_profiles",
+      "history_summary_tokens_source",
+      "TEXT NOT NULL DEFAULT 'estimated'",
+    );
+    this.ensureColumn(
+      "turn_profiles",
+      "compression_savings_source",
+      "TEXT NOT NULL DEFAULT 'estimated'",
+    );
   }
 
   get path(): string {

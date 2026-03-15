@@ -16,6 +16,7 @@ import type {
   ChatTurn,
   CompactedToolResult,
   CompressionResult,
+  MetricSource,
   MemoryRecord,
   PluginRunContext,
   PromptBuild,
@@ -277,14 +278,16 @@ export class PluginContainer {
       const extraction = this.memoryExtractor.extract(turn);
       candidateCount += extraction.candidateCount;
       state = await this.stateStore.applyPatch(params.sessionId, extraction.statePatch);
-      const limited = this.memoryExtractor.limit(
-        extraction.memories,
-        this.config.memory.maxWritesPerTurn,
-      );
-      const writeResult = await this.memoryStore.upsertMany(limited);
-      written += writeResult.written;
-      updated += writeResult.updated;
-      superseded += writeResult.superseded;
+      if (this.config.memory.autoWrite) {
+        const limited = this.memoryExtractor.limit(
+          extraction.memories,
+          this.config.memory.maxWritesPerTurn,
+        );
+        const writeResult = await this.memoryStore.upsertMany(limited);
+        written += writeResult.written;
+        updated += writeResult.updated;
+        superseded += writeResult.superseded;
+      }
     }
 
     if (!run) {
@@ -292,22 +295,38 @@ export class PluginContainer {
     }
 
     const promptTokens = run.usage?.input ?? run.prompt.totalEstimatedTokens;
+    const promptTokensSource: MetricSource =
+      typeof run.usage?.input === "number" ? "exact" : "estimated";
     const outputTokens = run.usage?.output ?? 0;
     await Promise.all(run.pendingTasks);
+    const toolTokens = run.compactedToolResults.reduce((sum, item) => sum + item.estimatedTokens, 0);
+    const toolTokensSource: MetricSource = toolTokens > 0 ? "estimated" : "exact";
+    const toolTokensSavedSource: MetricSource = run.toolTokensSaved > 0 ? "estimated" : "exact";
+    const historySummaryTokensSource: MetricSource =
+      run.compression.estimatedTokens > 0 ? "estimated" : "exact";
+    const compressionSavingsValue =
+      (run.compression.savedTokens ?? 0) +
+      run.compactedToolResults.reduce((sum, item) => sum + (item.savedTokens ?? 0), 0);
+    const compressionSavingsSource: MetricSource =
+      compressionSavingsValue > 0 ? "estimated" : "exact";
     const profile: TurnProfile = {
       runId: run.runId,
       sessionId: run.sessionId,
       createdAt: new Date().toISOString(),
       promptTokens,
+      promptTokensSource,
       promptBudget: this.config.compression.contextBudget,
       memoryInjected: run.memories.length,
       memoryCandidates: candidateCount,
       memoryWritten: written,
-      toolTokens: run.compactedToolResults.reduce((sum, item) => sum + item.estimatedTokens, 0),
+      toolTokens,
+      toolTokensSource,
       toolTokensSaved: run.toolTokensSaved,
+      toolTokensSavedSource,
       historySummaryTokens: run.compression.estimatedTokens,
-      compressionSavings:
-        (run.compression.savedTokens ?? 0) + run.compactedToolResults.reduce((sum, item) => sum + (item.savedTokens ?? 0), 0),
+      historySummaryTokensSource,
+      compressionSavings: compressionSavingsValue,
+      compressionSavingsSource,
       retrievalCount: run.memories.length,
     };
 
@@ -335,6 +354,13 @@ export class PluginContainer {
               updated,
               superseded,
             },
+            metricSources: {
+              promptTokens: promptTokensSource,
+              toolTokens: toolTokensSource,
+              toolTokensSaved: toolTokensSavedSource,
+              historySummaryTokens: historySummaryTokensSource,
+              compressionSavings: compressionSavingsSource,
+            },
           }
         : {
             success: params.success,
@@ -348,6 +374,13 @@ export class PluginContainer {
               written,
               updated,
               superseded,
+            },
+            metricSources: {
+              promptTokens: promptTokensSource,
+              toolTokens: toolTokensSource,
+              toolTokensSaved: toolTokensSavedSource,
+              historySummaryTokens: historySummaryTokensSource,
+              compressionSavings: compressionSavingsSource,
             },
           },
     );
