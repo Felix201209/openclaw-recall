@@ -13,9 +13,14 @@ openclaw-memory-plugin profile list
 
 - OpenClaw config presence
 - plugin enablement
-- database path
+- database path, writability, and SQLite query health
 - embedding availability
 - inspect route path
+- recent hook activity
+- memory pipeline activity
+- retrieval pipeline activity
+- compression pipeline activity
+- recent tool compaction evidence
 
 ## Debugging memory behavior
 
@@ -29,6 +34,7 @@ Explain retrieval:
 
 ```bash
 openclaw-memory-plugin memory explain "你记得我的偏好吗？"
+openclaw-memory-plugin session inspect <sessionId>
 ```
 
 Inspect one row:
@@ -58,6 +64,7 @@ Use the authenticated OpenClaw route:
 
 - `/plugins/openclaw-memory-plugin/dashboard`
 - `/plugins/openclaw-memory-plugin/status`
+- `/plugins/openclaw-memory-plugin/sessions/:sessionId`
 
 ## Recovery
 

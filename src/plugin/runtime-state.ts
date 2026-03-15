@@ -50,6 +50,7 @@ type RunContextInternal = PluginRunContext & {
   compactionEvents: Array<{ phase: "start" | "end"; willRetry?: boolean }>;
   historyMessages: ChatTurn[];
   promptText: string;
+  pendingTasks: Array<Promise<unknown>>;
 };
 
 export class PluginContainer {
@@ -79,12 +80,26 @@ export class PluginContainer {
 
     this.eventStore = new EventStore(this.database);
     this.stateStore = new SessionStateStore(this.database);
-    this.memoryStore = new MemoryStore(this.database, embeddings);
-    this.memoryExtractor = new MemoryExtractor();
-    this.memoryRetriever = new MemoryRetriever(this.memoryStore, new MemoryRanker(), embeddings);
-    this.contextCompressor = new ContextCompressor(config.compression.recentTurns);
+    this.memoryStore = new MemoryStore(this.database, embeddings, config.memory.dedupeSimilarity);
+    this.memoryExtractor = new MemoryExtractor({
+      writeThreshold: config.memory.writeThreshold,
+      preferenceTtlDays: config.memory.preferenceTtlDays,
+      semanticTtlDays: config.memory.semanticTtlDays,
+      episodicTtlDays: config.memory.episodicTtlDays,
+      sessionStateTtlDays: config.memory.sessionStateTtlDays,
+    });
+    this.memoryRetriever = new MemoryRetriever(
+      this.memoryStore,
+      new MemoryRanker(),
+      embeddings,
+      config.memory.bootTopK,
+    );
+    this.contextCompressor = new ContextCompressor(
+      config.compression.recentTurns,
+      config.compression.historySummaryThreshold,
+    );
     this.promptBuilder = new PromptBuilder(new BudgetManager());
-    this.toolOutputCompactor = new ToolOutputCompactor();
+    this.toolOutputCompactor = new ToolOutputCompactor(config.compression.toolCompactionThresholdChars);
     this.toolOutputStore = new ToolOutputStore(this.database);
     this.profileStore = new TurnProfileStore(this.database);
   }
@@ -163,6 +178,7 @@ export class PluginContainer {
       compactionEvents: [],
       historyMessages: pending.compression.keptRecentTurns,
       promptText: pending.prompt,
+      pendingTasks: [],
       lastUpdatedAt: new Date().toISOString(),
     };
 
@@ -205,7 +221,7 @@ export class PluginContainer {
       rawTrimmed: true,
     };
 
-    void this.toolOutputStore.record({
+    const writeTask = this.toolOutputStore.record({
       sessionId: params.sessionId,
       runId: params.runId,
       toolName: params.toolName,
@@ -219,6 +235,7 @@ export class PluginContainer {
 
     const run = params.runId ? this.getRunContext(params.runId) : null;
     if (run) {
+      run.pendingTasks.push(writeTask);
       run.compactedToolResults.push(enriched);
       run.toolTokensSaved += compacted.savedTokens ?? 0;
       run.lastUpdatedAt = new Date().toISOString();
@@ -276,6 +293,7 @@ export class PluginContainer {
 
     const promptTokens = run.usage?.input ?? run.prompt.totalEstimatedTokens;
     const outputTokens = run.usage?.output ?? 0;
+    await Promise.all(run.pendingTasks);
     const profile: TurnProfile = {
       runId: run.runId,
       sessionId: run.sessionId,
@@ -293,28 +311,46 @@ export class PluginContainer {
       retrievalCount: run.memories.length,
     };
 
-    await this.profileStore.record(profile, {
-      success: params.success,
-      error: params.error,
-      durationMs: params.durationMs,
-      outputTokens,
-      promptLayers: run.prompt.layers,
-      recalledMemories: run.memories.map((memory) => ({
-        id: memory.id,
-        kind: memory.kind,
-        summary: memory.summary,
-        reason: memory.retrievalReason,
-        score: memory.score,
-      })),
-      toolResults: run.compactedToolResults,
-      state,
-      compactionEvents: run.compactionEvents,
-      memoryWrite: {
-        written,
-        updated,
-        superseded,
-      },
-    });
+    await this.profileStore.record(
+      profile,
+      this.config.profile.storeDetails
+        ? {
+            success: params.success,
+            error: params.error,
+            durationMs: params.durationMs,
+            outputTokens,
+            promptLayers: run.prompt.layers,
+            recalledMemories: run.memories.map((memory) => ({
+              id: memory.id,
+              kind: memory.kind,
+              summary: memory.summary,
+              reason: memory.retrievalReason,
+              score: memory.score,
+            })),
+            toolResults: run.compactedToolResults,
+            state,
+            compactionEvents: run.compactionEvents,
+            memoryWrite: {
+              written,
+              updated,
+              superseded,
+            },
+          }
+        : {
+            success: params.success,
+            error: params.error,
+            durationMs: params.durationMs,
+            outputTokens,
+            layerCount: run.prompt.layers.length,
+            retrievalCount: run.memories.length,
+            toolCompactionCount: run.compactedToolResults.length,
+            memoryWrite: {
+              written,
+              updated,
+              superseded,
+            },
+          },
+    );
     await this.profileStore.prune(this.config.profile.retainRuns);
     this.persistSessionRuntime(run.runId, params.sessionId, run.promptText, profile);
     this.runById.delete(run.runId);

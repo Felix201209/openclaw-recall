@@ -17,6 +17,11 @@ export type OpenClawMemoryPluginConfig = {
     bootTopK?: number;
     maxWritesPerTurn?: number;
     dedupeSimilarity?: number;
+    writeThreshold?: number;
+    preferenceTtlDays?: number;
+    semanticTtlDays?: number;
+    episodicTtlDays?: number;
+    sessionStateTtlDays?: number;
   };
   compression?: {
     recentTurns?: number;
@@ -26,6 +31,7 @@ export type OpenClawMemoryPluginConfig = {
   };
   profile?: {
     retainRuns?: number;
+    storeDetails?: boolean;
   };
   inspect?: {
     httpPath?: string;
@@ -48,6 +54,11 @@ export type ResolvedPluginConfig = {
     bootTopK: number;
     maxWritesPerTurn: number;
     dedupeSimilarity: number;
+    writeThreshold: number;
+    preferenceTtlDays: number;
+    semanticTtlDays: number;
+    episodicTtlDays: number;
+    sessionStateTtlDays: number;
   };
   compression: {
     recentTurns: number;
@@ -57,6 +68,7 @@ export type ResolvedPluginConfig = {
   };
   profile: {
     retainRuns: number;
+    storeDetails: boolean;
   };
   inspect: {
     httpPath: string;
@@ -88,6 +100,11 @@ export const pluginConfigSchema = {
         bootTopK: { type: "number", minimum: 1, maximum: 20 },
         maxWritesPerTurn: { type: "number", minimum: 1, maximum: 20 },
         dedupeSimilarity: { type: "number", minimum: 0, maximum: 1 },
+        writeThreshold: { type: "number", minimum: 0, maximum: 20 },
+        preferenceTtlDays: { type: "number", minimum: 1, maximum: 3650 },
+        semanticTtlDays: { type: "number", minimum: 1, maximum: 3650 },
+        episodicTtlDays: { type: "number", minimum: 1, maximum: 3650 },
+        sessionStateTtlDays: { type: "number", minimum: 1, maximum: 3650 },
       },
     },
     compression: {
@@ -105,6 +122,7 @@ export const pluginConfigSchema = {
       additionalProperties: false,
       properties: {
         retainRuns: { type: "number", minimum: 10, maximum: 10000 },
+        storeDetails: { type: "boolean" },
       },
     },
     inspect: {
@@ -133,6 +151,10 @@ export const runtimePluginConfigSchema = {
     "compression.contextBudget": {
       label: "Context Budget",
       help: "Maximum estimated tokens for injected memory and compression context.",
+    },
+    "memory.writeThreshold": {
+      label: "Write Threshold",
+      help: "Minimum importance score required before a candidate memory is persisted.",
     },
     "inspect.httpPath": {
       label: "Inspect HTTP Path",

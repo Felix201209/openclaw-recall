@@ -2,8 +2,21 @@ import { estimateTokens, sentenceFromText } from "../shared/text.js";
 import { CompactedToolResult } from "../types/domain.js";
 
 export class ToolOutputCompactor {
+  constructor(private readonly thresholdChars = 600) {}
+
   compact(toolName: string, payload: unknown): CompactedToolResult {
-    const originalEstimatedTokens = estimateTokens(serializePayload(payload));
+    const serialized = serializePayload(payload);
+    const originalEstimatedTokens = estimateTokens(serialized);
+    if (serialized.length < this.thresholdChars) {
+      const compacted = [`Tool: ${toolName}`, `Summary: ${sentenceFromText(serialized, 240)}`].join("\n");
+      return {
+        toolName,
+        compacted,
+        estimatedTokens: estimateTokens(compacted),
+        originalEstimatedTokens,
+        savedTokens: Math.max(0, originalEstimatedTokens - estimateTokens(compacted)),
+      };
+    }
     const compacted = this.renderPayload(toolName, payload);
     const estimatedTokens = estimateTokens(compacted);
     return {

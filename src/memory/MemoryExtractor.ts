@@ -23,9 +23,17 @@ type CandidateSeed = {
   memoryGroup?: string;
 };
 
-const IMPORTANCE_THRESHOLD = 5.2;
+export interface MemoryExtractorPolicy {
+  writeThreshold: number;
+  preferenceTtlDays: number;
+  semanticTtlDays: number;
+  episodicTtlDays: number;
+  sessionStateTtlDays: number;
+}
 
 export class MemoryExtractor {
+  constructor(private readonly policy: MemoryExtractorPolicy) {}
+
   extract(turn: ChatTurn): ExtractionResult {
     const text = turn.text.trim();
     const topics = tokenize(text);
@@ -53,7 +61,7 @@ export class MemoryExtractor {
         kind: "session_state",
         summary: `Current task: ${sentenceFromText(taskMatch[1])}.`,
         content: text,
-        ttlDays: 14,
+        ttlDays: this.policy.sessionStateTtlDays,
         decayRate: 0.18,
         futureUtility: 3.2,
         userSpecificity: 2.2,
@@ -72,7 +80,7 @@ export class MemoryExtractor {
         kind: "session_state",
         summary: `Constraint: ${constraint}.`,
         content: text,
-        ttlDays: 21,
+        ttlDays: this.policy.sessionStateTtlDays,
         decayRate: 0.12,
         futureUtility: 3.1,
         userSpecificity: 1.8,
@@ -91,7 +99,7 @@ export class MemoryExtractor {
         kind: "session_state",
         summary: `Decision: ${decision}.`,
         content: text,
-        ttlDays: 21,
+        ttlDays: this.policy.sessionStateTtlDays,
         decayRate: 0.12,
         futureUtility: 3.0,
         userSpecificity: 1.7,
@@ -110,7 +118,7 @@ export class MemoryExtractor {
         kind: "session_state",
         summary: `Open question: ${question}.`,
         content: text,
-        ttlDays: 7,
+        ttlDays: this.policy.sessionStateTtlDays,
         decayRate: 0.24,
         futureUtility: 2.1,
         userSpecificity: 1.4,
@@ -124,7 +132,8 @@ export class MemoryExtractor {
 
     const memories = candidates
       .map((candidate) => this.materializeCandidate(candidate, turn, topics, entityKeys, now))
-      .filter((memory) => (memory.importance ?? 0) >= IMPORTANCE_THRESHOLD);
+      .filter((memory) => (memory.importance ?? 0) >= this.policy.writeThreshold)
+      .filter(uniqueByFingerprint);
 
     return {
       memories,
@@ -164,7 +173,7 @@ export class MemoryExtractor {
       fingerprint: fingerprint(`${candidate.kind}:${normalizedSummary}`),
       createdAt: now,
       lastSeenAt: now,
-      ttlDays: candidate.ttlDays,
+      ttlDays: candidate.ttlDays ?? this.defaultTtlFor(candidate.kind),
       decayRate: candidate.decayRate ?? 0.06,
       confidence: candidate.confidence,
       importance,
@@ -175,6 +184,27 @@ export class MemoryExtractor {
       sourceTurnIds: [turn.id],
     };
   }
+
+  private defaultTtlFor(kind: MemoryKind): number {
+    if (kind === "preference") {
+      return this.policy.preferenceTtlDays;
+    }
+    if (kind === "semantic") {
+      return this.policy.semanticTtlDays;
+    }
+    if (kind === "session_state") {
+      return this.policy.sessionStateTtlDays;
+    }
+    return this.policy.episodicTtlDays;
+  }
+}
+
+function uniqueByFingerprint(
+  memory: MemoryRecord,
+  index: number,
+  records: MemoryRecord[],
+): boolean {
+  return records.findIndex((candidate) => candidate.fingerprint === memory.fingerprint) === index;
 }
 
 function extractPreferenceCandidates(text: string): CandidateSeed[] {
@@ -227,7 +257,7 @@ function extractPreferenceCandidates(text: string): CandidateSeed[] {
           kind: "preference" as const,
           summary: pattern.summary(match),
           content: text,
-          ttlDays: 180,
+          ttlDays: undefined,
           decayRate: 0.01,
           futureUtility: 3.4,
           userSpecificity: 3.0,
@@ -286,7 +316,7 @@ function extractSemanticCandidates(text: string): CandidateSeed[] {
         kind: "semantic" as const,
         summary: pattern.summary(match),
         content: text,
-        ttlDays: 120,
+        ttlDays: undefined,
         decayRate: 0.02,
         futureUtility: 3.0,
         userSpecificity: 2.8,
@@ -307,7 +337,7 @@ function extractEpisodicCandidates(text: string): CandidateSeed[] {
       kind: "episodic",
       summary: `Recent event: ${sentenceFromText(text)}.`,
       content: text,
-      ttlDays: 14,
+      ttlDays: undefined,
       decayRate: 0.2,
       futureUtility: 1.6,
       userSpecificity: 1.4,
@@ -323,7 +353,7 @@ function extractEpisodicCandidates(text: string): CandidateSeed[] {
       kind: "episodic",
       summary: `User referenced ${text.match(/README\.md|package\.json|AGENTS\.md/i)?.[0] ?? "a project file"}.`,
       content: text,
-      ttlDays: 7,
+      ttlDays: undefined,
       decayRate: 0.24,
       futureUtility: 1.2,
       userSpecificity: 1.5,

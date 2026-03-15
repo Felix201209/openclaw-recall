@@ -77,6 +77,26 @@ export function resolvePluginConfig(params: {
         parseNumber(env.OPENCLAW_MEMORY_PLUGIN_DEDUPE_SIMILARITY) ??
         pluginConfig.memory?.dedupeSimilarity ??
         defaultPluginConfig.memory.dedupeSimilarity,
+      writeThreshold:
+        parseNumber(env.OPENCLAW_MEMORY_PLUGIN_WRITE_THRESHOLD) ??
+        pluginConfig.memory?.writeThreshold ??
+        defaultPluginConfig.memory.writeThreshold,
+      preferenceTtlDays:
+        parseNumber(env.OPENCLAW_MEMORY_PLUGIN_PREFERENCE_TTL_DAYS) ??
+        pluginConfig.memory?.preferenceTtlDays ??
+        defaultPluginConfig.memory.preferenceTtlDays,
+      semanticTtlDays:
+        parseNumber(env.OPENCLAW_MEMORY_PLUGIN_SEMANTIC_TTL_DAYS) ??
+        pluginConfig.memory?.semanticTtlDays ??
+        defaultPluginConfig.memory.semanticTtlDays,
+      episodicTtlDays:
+        parseNumber(env.OPENCLAW_MEMORY_PLUGIN_EPISODIC_TTL_DAYS) ??
+        pluginConfig.memory?.episodicTtlDays ??
+        defaultPluginConfig.memory.episodicTtlDays,
+      sessionStateTtlDays:
+        parseNumber(env.OPENCLAW_MEMORY_PLUGIN_SESSION_STATE_TTL_DAYS) ??
+        pluginConfig.memory?.sessionStateTtlDays ??
+        defaultPluginConfig.memory.sessionStateTtlDays,
     },
     compression: {
       recentTurns:
@@ -101,6 +121,10 @@ export function resolvePluginConfig(params: {
         parseNumber(env.OPENCLAW_MEMORY_PLUGIN_PROFILE_RETAIN_RUNS) ??
         pluginConfig.profile?.retainRuns ??
         defaultPluginConfig.profile.retainRuns,
+      storeDetails:
+        parseBoolean(env.OPENCLAW_MEMORY_PLUGIN_PROFILE_STORE_DETAILS) ??
+        pluginConfig.profile?.storeDetails ??
+        defaultPluginConfig.profile.storeDetails,
     },
     inspect: {
       httpPath:
@@ -117,4 +141,23 @@ function parseNumber(value: string | undefined): number | undefined {
   }
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function parseBoolean(value: string | undefined): boolean | undefined {
+  if (!value?.trim()) {
+    return undefined;
+  }
+  if (/^(1|true|yes|on)$/i.test(value)) {
+    return true;
+  }
+  if (/^(0|false|no|off)$/i.test(value)) {
+    return false;
+  }
+  return undefined;
+}
+
+export function listPluginEnvOverrides(env: NodeJS.ProcessEnv = process.env): string[] {
+  return Object.keys(env)
+    .filter((key) => key.startsWith("OPENCLAW_MEMORY_PLUGIN_") && env[key]?.trim())
+    .sort();
 }

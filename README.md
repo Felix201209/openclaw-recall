@@ -2,37 +2,50 @@
 
 Production-grade enhancement plugin for OpenClaw that adds persistent memory, token-efficient context construction, tool output compaction, and inspectable prompt profiling.
 
-This repository is not an OpenClaw replacement product. It is an installable plugin package that attaches to OpenClaw's existing runtime, hook system, prompt pipeline, and tool lifecycle.
+This repository is not an OpenClaw replacement product. It extends OpenClaw's existing runtime and product surface through plugin hooks.
+
+## Why install it
+
+OpenClaw already has a mature runtime. This plugin strengthens the parts that most directly affect long-running agent quality:
+
+- models stop forgetting stable user preferences
+- cross-session continuity improves
+- raw history replay is reduced
+- large tool output stops bloating prompts
+- prompt construction becomes inspectable instead of opaque
+
+In practical terms, after installing this plugin you get:
+
+- fewer repeated instructions across sessions
+- lower prompt waste from old transcript and tool payloads
+- better task continuity
+- concrete profiling data for retrieval and compression behavior
 
 ## What it adds
 
-- Automatic memory writes after each turn
-- Cross-session memory retrieval before prompt build
-- Structured memory types: `preference`, `semantic`, `episodic`, `session_state`
-- Layered context compression:
-  - task state
-  - relevant memory
-  - compacted tool output
-  - older history summary
-  - recent turn window
+- Automatic memory writes after each agent turn
+- Query-aware memory retrieval before prompt build
+- Structured memory types:
+  - `preference`
+  - `semantic`
+  - `episodic`
+  - `session_state`
+- Layered context construction:
+  - `TASK STATE`
+  - `RELEVANT MEMORY`
+  - `COMPRESSED TOOL OUTPUT`
+  - `OLDER HISTORY SUMMARY`
+  - `RECENT TURNS`
 - Tool output compaction for large payloads
 - Prompt/profile inspection:
-  - estimated prompt size
+  - prompt size
   - retrieval count
-  - compaction savings
-  - trim/compression events
+  - memory writes
+  - tool savings
+  - compression savings
+  - trim/context details
 
-## Repository boundaries
-
-This plugin intentionally does not ship a replacement CLI, TUI, or Web UI for OpenClaw. It extends OpenClaw itself and provides:
-
-- an installable OpenClaw plugin entry
-- a standalone operator CLI: `openclaw-memory-plugin`
-- a small inspect surface under an authenticated OpenClaw HTTP route
-
-## Install
-
-### Option A: local development link
+## 5-minute quickstart
 
 ```bash
 git clone https://github.com/Felix201209/openclaw-memory-plugin.git
@@ -40,176 +53,183 @@ cd openclaw-memory-plugin
 npm install
 npm run build
 openclaw plugins install --link .
+openclaw plugins info openclaw-memory-plugin
+openclaw-memory-plugin doctor
+openclaw-memory-plugin status
+npm run demo
 ```
 
-### Option B: npm install after publish
+If you only want the shortest verification path:
 
-This package is release-ready, but this repository does not claim that the npm package is already published. After publish, the install flow will be:
+```bash
+npm install
+npm run smoke
+```
+
+That path checks:
+
+- type-check/build
+- unit tests
+- embedded integration flow
+- install flow through `openclaw plugins install --link`
+
+Full setup details are in [QUICKSTART.md](/Users/felix/Documents/openclaw-memory-plugin/QUICKSTART.md).
+
+## Smallest demo
+
+This repository includes a scripted demo:
+
+```bash
+npm run demo
+```
+
+What it shows:
+
+1. user teaches a preference
+2. plugin stores it automatically
+3. a new session recalls it
+4. a tool read gets compacted
+5. profiles show recorded memory/compression artifacts
+
+See [EXAMPLES.md](/Users/felix/Documents/openclaw-memory-plugin/EXAMPLES.md) for a walkthrough and sample outputs.
+
+## Install and enable
+
+### Local development link
+
+```bash
+npm install
+npm run build
+openclaw plugins install --link .
+```
+
+### After npm publish
+
+The repository is package-ready. Once published, the install flow becomes:
 
 ```bash
 npm install openclaw-memory-plugin
 openclaw plugins install openclaw-memory-plugin
 ```
 
-## Enable and configure
-
-`openclaw plugins install` writes the loader path into your OpenClaw config. The plugin entry then lives under:
-
-```json
-{
-  "plugins": {
-    "entries": {
-      "openclaw-memory-plugin": {
-        "enabled": true,
-        "hooks": {
-          "allowPromptInjection": true
-        },
-        "config": {
-          "memory": {
-            "topK": 6,
-            "bootTopK": 4
-          },
-          "compression": {
-            "recentTurns": 6,
-            "contextBudget": 2400,
-            "historySummaryThreshold": 6,
-            "toolCompactionThresholdChars": 600
-          }
-        }
-      }
-    }
-  }
-}
-```
-
-Environment overrides are supported through `.env` or process env:
-
-```bash
-OPENCLAW_MEMORY_PLUGIN_EMBEDDING_PROVIDER=local
-OPENCLAW_MEMORY_PLUGIN_CONTEXT_BUDGET=2400
-OPENCLAW_MEMORY_PLUGIN_RECENT_TURNS=6
-OPENCLAW_MEMORY_PLUGIN_MEMORY_TOP_K=6
-OPENCLAW_MEMORY_PLUGIN_BOOT_TOP_K=4
-OPENCLAW_MEMORY_PLUGIN_HTTP_PATH=/plugins/openclaw-memory-plugin
-```
-
-See [`.env.example`](/Users/felix/Documents/openclaw-memory-plugin/.env.example) and [OPENCLAW-INTEGRATION.md](/Users/felix/Documents/openclaw-memory-plugin/OPENCLAW-INTEGRATION.md).
-
-## Verify it is working
-
-### 1. Confirm OpenClaw can see the plugin
+### Confirm OpenClaw sees it
 
 ```bash
 openclaw plugins info openclaw-memory-plugin
+openclaw plugins doctor
 ```
 
-### 2. Run operator checks
+### Confirm the plugin itself is healthy
 
 ```bash
-openclaw-memory-plugin status
 openclaw-memory-plugin doctor
+openclaw-memory-plugin status
 openclaw-memory-plugin memory list
 openclaw-memory-plugin profile list
 ```
 
-### 3. Inspect the plugin route
+## Operator CLI
 
-By default the plugin exposes:
-
-- `/plugins/openclaw-memory-plugin/dashboard`
-- `/plugins/openclaw-memory-plugin/status`
-- `/plugins/openclaw-memory-plugin/memories`
-- `/plugins/openclaw-memory-plugin/profiles`
-- `/plugins/openclaw-memory-plugin/sessions`
-
-These routes are registered through OpenClaw and use `auth: "plugin"`.
-
-## Standalone plugin CLI
-
-This repository intentionally ships its own operator CLI instead of trying to replace the OpenClaw CLI.
+This package intentionally ships an operator CLI instead of replacing `openclaw`.
 
 ```bash
 openclaw-memory-plugin doctor
 openclaw-memory-plugin status
+openclaw-memory-plugin config show
+openclaw-memory-plugin config validate
+openclaw-memory-plugin config init
 openclaw-memory-plugin memory list
 openclaw-memory-plugin memory inspect <id>
 openclaw-memory-plugin memory search "<query>"
 openclaw-memory-plugin memory explain "<query>"
 openclaw-memory-plugin profile list
 openclaw-memory-plugin profile inspect <runId>
-openclaw-memory-plugin config show
+openclaw-memory-plugin session list
+openclaw-memory-plugin session inspect <sessionId>
 ```
 
-## Default policy
+## Inspect surface
 
-### Memory write policy
+The plugin exposes a small authenticated inspect surface inside OpenClaw:
 
-- `preference`: long-lived, high priority
-- `semantic`: stable user/project facts
-- `session_state`: current task, constraints, decisions, open questions
-- `episodic`: short TTL references and recent events
+- `/plugins/openclaw-memory-plugin/dashboard`
+- `/plugins/openclaw-memory-plugin/status`
+- `/plugins/openclaw-memory-plugin/memories`
+- `/plugins/openclaw-memory-plugin/profiles`
+- `/plugins/openclaw-memory-plugin/sessions`
+- `/plugins/openclaw-memory-plugin/sessions/:sessionId`
 
-Automatic writes happen after each agent turn:
+This is a plugin inspection surface, not a replacement web UI.
 
-```text
-assistant turn complete
--> candidate extraction
--> classification
--> importance scoring
--> dedupe / conflict handling
--> memory write + state patch
--> profile record
-```
+## Configuration and defaults
 
-### Compression policy
+The default strategy is tuned for usefulness without forcing heavy setup:
 
-Prompt assembly is fixed into these layers:
+- local hashed embeddings by default
+- preference memory gets longest TTL
+- episodic memory decays fastest
+- prompt budget defaults to `2400`
+- recent turn window defaults to `6`
+- older history summary starts once turn count crosses threshold
+- verbose per-run profile details are enabled by default
 
-1. `SYSTEM`
-2. `TASK STATE`
-3. `RELEVANT MEMORY`
-4. `COMPRESSED TOOL OUTPUT`
-5. `OLDER HISTORY SUMMARY`
-6. `RECENT TURNS`
-7. `CURRENT USER MESSAGE`
+Configuration precedence:
 
-Trim priority favors preserving system instructions and the current message.
+1. `OPENCLAW_MEMORY_PLUGIN_*` environment variables
+2. `plugins.entries.openclaw-memory-plugin.config`
+3. plugin defaults
 
-## Storage
+See:
 
-All plugin data lives under OpenClaw's isolated state directory:
+- [OPENCLAW-INTEGRATION.md](/Users/felix/Documents/openclaw-memory-plugin/OPENCLAW-INTEGRATION.md)
+- [ARCHITECTURE.md](/Users/felix/Documents/openclaw-memory-plugin/ARCHITECTURE.md)
+- [OPERATIONS.md](/Users/felix/Documents/openclaw-memory-plugin/OPERATIONS.md)
+- [TROUBLESHOOTING.md](/Users/felix/Documents/openclaw-memory-plugin/TROUBLESHOOTING.md)
 
-```text
-$OPENCLAW_HOME/.openclaw/plugins/openclaw-memory-plugin/
-```
-
-Main artifacts:
-
-- `memory.sqlite`
-- memory rows
-- tool compaction rows
-- session state
-- recorded turn profiles
-
-## Development
+## Development and verification
 
 ```bash
-npm install
 npm run check
 npm run build
+npm run test:unit
 npm run test:integration
 npm run test:install
+npm run smoke
+npm run verify
 npm run release:build
 ```
 
-`npm run release:build` produces a tarball in `./.release/`.
+## Packaging
+
+Release tarballs are produced by:
+
+```bash
+npm run release:build
+```
+
+The package exports:
+
+- plugin entrypoint
+- standalone operator CLI
+- types
+- docs and notices required for install/use
 
 ## Attribution
 
-This plugin uses OpenClaw's published plugin/runtime integration model and targets the OpenClaw plugin SDK. The enhancement logic in this repository was extracted and adapted from the earlier NovaClaw prototype work. See:
+This plugin targets the OpenClaw plugin SDK and runtime integration model. The enhancement logic in this repository was extracted and adapted from the earlier NovaClaw prototype work rather than continuing as a replacement product.
 
-- [ARCHITECTURE.md](/Users/felix/Documents/openclaw-memory-plugin/ARCHITECTURE.md)
-- [OPENCLAW-INTEGRATION.md](/Users/felix/Documents/openclaw-memory-plugin/OPENCLAW-INTEGRATION.md)
+Relevant docs:
+
 - [PLUGIN-EXTRACTION-PLAN.md](/Users/felix/Documents/openclaw-memory-plugin/PLUGIN-EXTRACTION-PLAN.md)
 - [NOTICE](/Users/felix/Documents/openclaw-memory-plugin/NOTICE)
 - [THIRD_PARTY_NOTICES.md](/Users/felix/Documents/openclaw-memory-plugin/THIRD_PARTY_NOTICES.md)
+
+## Short roadmap
+
+The current plugin is installable and release-ready. The next highest-value upgrades are:
+
+- tokenizer-exact budgeting
+- stronger semantic conflict resolution
+- richer inspect dashboards
+- user-controlled memory editing
+- deeper OpenClaw-native UI surface integration

@@ -32,6 +32,8 @@ openclaw plugins install --link .
 ```bash
 openclaw plugins info openclaw-memory-plugin
 openclaw plugins doctor
+openclaw-memory-plugin doctor
+openclaw-memory-plugin status
 ```
 
 ## Config path and state path
@@ -55,6 +57,14 @@ Resolution order:
 1. environment variables `OPENCLAW_MEMORY_PLUGIN_*`
 2. `plugins.entries.openclaw-memory-plugin.config`
 3. defaults from [`src/config/defaults.ts`](/Users/felix/Documents/openclaw-memory-plugin/src/config/defaults.ts)
+
+Starter entry helpers:
+
+```bash
+openclaw-memory-plugin config init
+openclaw-memory-plugin config init --write-openclaw
+openclaw-memory-plugin config validate
+```
 
 ## Hook behavior
 
@@ -118,6 +128,7 @@ Endpoints:
 - `/profiles`
 - `/profiles/:runId`
 - `/sessions`
+- `/sessions/:sessionId`
 
 ## Known limitations
 

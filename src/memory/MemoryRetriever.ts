@@ -8,13 +8,19 @@ export class MemoryRetriever {
     private readonly store: MemoryStore,
     private readonly ranker: MemoryRanker,
     private readonly embeddings: EmbeddingProvider,
+    private readonly bootTopK: number,
   ) {}
 
   async retrieve(query: string, limit: number, options: { sessionId?: string } = {}): Promise<MemoryRecord[]> {
     const memories = await this.store.search();
     const queryEmbedding = await this.embeddings.embed(query);
     const ranked = this.ranker.rank(query, memories, queryEmbedding).slice(0, limit);
-    const boot = options.sessionId ? await this.store.listBootCandidates(options.sessionId, Math.max(2, Math.ceil(limit / 2))) : [];
+    const boot = options.sessionId
+      ? await this.store.listBootCandidates(
+          options.sessionId,
+          Math.min(limit, Math.max(2, this.bootTopK)),
+        )
+      : [];
     const merged = Array.from(
       new Map(
         [...boot, ...ranked]

@@ -13,6 +13,16 @@ type LayerInput = {
 export class BudgetManager {
   fit(totalBudget: number, inputs: LayerInput[]): PromptLayer[] {
     const layers = inputs.map((input) => {
+      if (input.neverTrim) {
+        return {
+          name: input.name,
+          priority: input.priority,
+          content: input.content,
+          estimatedTokens: estimateTokens(input.content),
+          trimmed: false,
+        };
+      }
+
       const targetTokens = Math.max(input.minTokens ?? 24, Math.floor(totalBudget * input.targetRatio));
       const truncated = truncateToTokens(input.content, targetTokens);
       return {

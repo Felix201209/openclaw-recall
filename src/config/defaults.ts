@@ -14,6 +14,11 @@ export const defaultPluginConfig = {
     bootTopK: 4,
     maxWritesPerTurn: 6,
     dedupeSimilarity: 0.95,
+    writeThreshold: 5.2,
+    preferenceTtlDays: 180,
+    semanticTtlDays: 120,
+    episodicTtlDays: 14,
+    sessionStateTtlDays: 21,
   },
   compression: {
     recentTurns: 6,
@@ -23,8 +28,30 @@ export const defaultPluginConfig = {
   },
   profile: {
     retainRuns: 500,
+    storeDetails: true,
   },
   inspect: {
     httpPath: DEFAULT_HTTP_PATH,
   },
 };
+
+export function buildDefaultPluginEntry() {
+  return {
+    enabled: true,
+    hooks: {
+      allowPromptInjection: true,
+    },
+    config: {
+      memory: defaultPluginConfig.memory,
+      compression: defaultPluginConfig.compression,
+      profile: defaultPluginConfig.profile,
+      inspect: defaultPluginConfig.inspect,
+      embedding: {
+        provider: defaultPluginConfig.embedding.provider,
+        model: defaultPluginConfig.embedding.model,
+        baseUrl: defaultPluginConfig.embedding.baseUrl,
+        dimensions: defaultPluginConfig.embedding.dimensions,
+      },
+    },
+  };
+}

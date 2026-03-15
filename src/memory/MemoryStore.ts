@@ -1,4 +1,4 @@
-import { EmbeddingProvider } from "./EmbeddingProvider.js";
+import { cosineSimilarity, EmbeddingProvider } from "./EmbeddingProvider.js";
 import { PluginDatabase } from "../storage/PluginDatabase.js";
 import { MemoryRecord } from "../types/domain.js";
 
@@ -6,6 +6,7 @@ export class MemoryStore {
   constructor(
     private readonly database: PluginDatabase,
     private readonly embeddings: EmbeddingProvider,
+    private readonly dedupeSimilarity: number,
   ) {}
 
   async listActive(): Promise<MemoryRecord[]> {
@@ -128,6 +129,15 @@ export class MemoryStore {
       const embedding =
         candidate.embedding ??
         (await this.embeddings.embed([candidate.summary, candidate.content].join("\n")));
+
+      const similar = await this.findSimilarActive(candidate, embedding);
+      if (similar) {
+        const merged = await this.mergeMemory(similar, { ...candidate, embedding });
+        this.update(merged);
+        updated += 1;
+        continue;
+      }
+
       this.insert({ ...candidate, embedding });
       written += 1;
     }
@@ -155,6 +165,27 @@ export class MemoryStore {
       ...memory,
       retrievalReason: `Candidate memory for query "${query}".`,
     }));
+  }
+
+  private async findSimilarActive(
+    candidate: MemoryRecord,
+    embedding: number[],
+  ): Promise<MemoryRecord | null> {
+    const active = await this.listActive();
+    let best: { memory: MemoryRecord; similarity: number } | null = null;
+    for (const memory of active) {
+      if (memory.kind !== candidate.kind) {
+        continue;
+      }
+      const similarity = cosineSimilarity(embedding, memory.embedding ?? []);
+      if (similarity < this.dedupeSimilarity) {
+        continue;
+      }
+      if (!best || similarity > best.similarity) {
+        best = { memory, similarity };
+      }
+    }
+    return best?.memory ?? null;
   }
 
   private async mergeMemory(previous: MemoryRecord, candidate: MemoryRecord): Promise<MemoryRecord> {

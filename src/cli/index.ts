@@ -4,6 +4,7 @@ import { registerConfigCommands } from "./commands/config.js";
 import { registerDoctorCommands } from "./commands/doctor.js";
 import { registerMemoryCommands } from "./commands/memory.js";
 import { registerProfileCommands } from "./commands/profile.js";
+import { registerSessionCommands } from "./commands/session.js";
 import { registerStatusCommands } from "./commands/status.js";
 
 const program = new Command();
@@ -11,12 +12,13 @@ const program = new Command();
 program
   .name("openclaw-memory-plugin")
   .description("Inspect and operate the OpenClaw Memory Plugin")
-  .version("0.1.0");
+  .version("0.2.0");
 
 registerStatusCommands(program);
 registerDoctorCommands(program);
 registerMemoryCommands(program);
 registerProfileCommands(program);
+registerSessionCommands(program);
 registerConfigCommands(program);
 
 await program.parseAsync(process.argv);

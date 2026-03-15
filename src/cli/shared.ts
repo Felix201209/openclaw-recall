@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import JSON5 from "json5";
 import { Command } from "commander";
-import { resolvePluginConfig, resolveOpenClawHome } from "../config/loader.js";
+import { listPluginEnvOverrides, resolvePluginConfig, resolveOpenClawHome } from "../config/loader.js";
 import type { OpenClawMemoryPluginConfig, ResolvedPluginConfig } from "../config/schema.js";
 import { getOrCreatePluginContainer, type PluginLogger } from "../plugin/runtime-state.js";
 
@@ -57,6 +57,20 @@ export async function createCliContainer(
   };
 }
 
+export async function writeOpenClawConfig(filePath: string, value: Record<string, unknown>): Promise<void> {
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  await fs.writeFile(filePath, JSON.stringify(value, null, 2));
+}
+
+export function pluginConfigSources(env: NodeJS.ProcessEnv = process.env): string[] {
+  const envOverrides = listPluginEnvOverrides(env);
+  return [
+    ...envOverrides,
+    "plugins.entries.openclaw-memory-plugin.config",
+    "defaults",
+  ];
+}
+
 export function addJsonFlag(command: Command): Command {
   return command.option("--json", "Render raw JSON output");
 }
@@ -84,7 +98,7 @@ function defaultLogger(): PluginLogger {
   };
 }
 
-async function readConfig(filePath: string): Promise<Record<string, unknown> & { __exists?: boolean }> {
+export async function readConfig(filePath: string): Promise<Record<string, unknown> & { __exists?: boolean }> {
   try {
     const raw = await fs.readFile(filePath, "utf8");
     const parsed = JSON5.parse(raw) as Record<string, unknown>;

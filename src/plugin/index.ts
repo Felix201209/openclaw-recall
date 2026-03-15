@@ -43,19 +43,21 @@ const plugin = {
 
     api.registerCli(
       async ({ program }) => {
-        const [{ registerMemoryCommands }, { registerProfileCommands }, { registerDoctorCommands }, { registerConfigCommands }, { registerStatusCommands }] =
+        const [{ registerMemoryCommands }, { registerProfileCommands }, { registerDoctorCommands }, { registerConfigCommands }, { registerStatusCommands }, { registerSessionCommands }] =
           await Promise.all([
             import("../cli/commands/memory.js"),
             import("../cli/commands/profile.js"),
             import("../cli/commands/doctor.js"),
             import("../cli/commands/config.js"),
             import("../cli/commands/status.js"),
+            import("../cli/commands/session.js"),
           ]);
         const sub = program.command("memoryplus").description("Inspect the OpenClaw Memory Plugin");
         registerStatusCommands(sub);
         registerDoctorCommands(sub);
         registerMemoryCommands(sub);
         registerProfileCommands(sub);
+        registerSessionCommands(sub);
         registerConfigCommands(sub);
       },
       { commands: ["memoryplus"] },

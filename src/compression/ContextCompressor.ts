@@ -2,9 +2,23 @@ import { chunkArray, estimateTokens, sentenceFromText, uniqueStrings } from "../
 import { ChatTurn, CompressionResult, SessionState } from "../types/domain.js";
 
 export class ContextCompressor {
-  constructor(private readonly recentTurns: number) {}
+  constructor(
+    private readonly recentTurns: number,
+    private readonly historySummaryThreshold: number,
+  ) {}
 
   compress(turns: ChatTurn[], state: SessionState): CompressionResult {
+    if (turns.length < this.historySummaryThreshold) {
+      return {
+        summary: "",
+        hierarchicalSummaries: [],
+        compressedTurns: [],
+        keptRecentTurns: turns,
+        originalEstimatedTokens: estimateTokens(turns.map((turn) => `${turn.role}: ${turn.text}`).join("\n")),
+        estimatedTokens: 0,
+        savedTokens: 0,
+      };
+    }
     const keepCount = Math.max(2, this.recentTurns);
     const cutIndex = Math.max(0, turns.length - keepCount);
     const compressedTurns = turns.slice(0, cutIndex);
