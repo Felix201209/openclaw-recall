@@ -170,7 +170,7 @@ Cause:
 - prompt token counts can be exact when provider usage is returned
 - savings values still come from heuristic before/after comparisons
 
-This is expected in 1.0.1.
+This is expected in 1.1.0.
 
 ## SQLite appears locked
 

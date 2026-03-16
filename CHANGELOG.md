@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.1.0
+
+- added a formal `MemoryBackend` abstraction with `LocalBackend`, built-in `recall-http` remote backend support, and reconnect-mode access to the same memory space across installs
+- upgraded retrieval to a full `keyword` / `embedding` / `hybrid` pipeline with explainable contribution reporting and safe keyword fallback when embeddings are unavailable
+- completed scope-aware memory behavior for `private`, `workspace`, `shared`, and `session` across write, retrieval, import, export, inspect, and reconnect flows
+- upgraded import/export/recovery with smarter normalization, duplicate merge and supersede reporting, scope preservation, sensitive/noise rejection, and clean-install restore coverage
+- strengthened lifecycle intelligence so stale semantic facts remain inspectable while becoming retrieval-ineligible by default, and surfaced lifecycle-aware hygiene summaries in operator workflows
+- added `memory reindex` and `memory compact` alongside persisted maintenance reports and lifecycle-aware hygiene scoring
+- improved restored natural-language recall after reconnect/import so restored installs surface stable preferences or current project focus in the normal answer path
+- hardened doctor/status/memory inspect/profile inspect/session inspect with backend mode, memory space, scope, lifecycle, retrieval mode, and hygiene visibility
+- verified release-confidence paths across source install, tarball install, clean consumer install, built-in backend serve, reconnect, import/export restore, and installed-package operator CLI execution
+
 ## 1.0.1
 
 - moved the npm package to the scoped name `@felix201209/openclaw-recall` while keeping the plugin id and operator CLI as `openclaw-recall`

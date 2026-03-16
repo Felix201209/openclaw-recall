@@ -2,20 +2,7 @@
 
 ## Release target
 
-This matrix applies to `1.0.1`.
-
-The `main` branch may contain post-`1.0.1` development work for `v1.1.0`; do not treat those paths as release-verified unless they are called out below.
-
-## Near-release `main` verification for v1.1.0 work
-
-These paths are verified on `main`, but are not yet claimed as a tagged release matrix:
-
-- built-in `recall-http` backend serve
-- clean-consumer reconnect to the same `memorySpaceId`
-- export/import restore across two installs
-- scope metadata persistence across remote reconnect flows
-- `doctor` / `status` / `memory explain` on the restored install
-- restored natural-language recall after reconnect/import
+This matrix applies to `1.1.0`.
 
 ## Verified versions
 
@@ -31,22 +18,38 @@ These paths are verified on `main`, but are not yet claimed as a tagged release 
 
 ## Verified provider/runtime paths
 
-### Fully smoke-tested
+### Fully release-verified
 
 - `openai-responses`
   - prompt token usage can be `exact` when OpenClaw or the provider returns usage metadata
-  - verified in embedded integration, source install, and tarball install flows
+  - verified in embedded integration, source install, tarball install, installed-package operator flows, and remote reconnect roundtrip
 
-### Supported with partial verification in 1.0.1
+### Supported with partial verification
 
 - OpenAI-compatible embeddings via `embedding.provider=openai`
   - configuration, doctor, and config validation are supported
-  - automated smoke currently covers local hashed embeddings by default instead of a live embedding API
+  - release-confidence automation still uses local hashed embeddings by default instead of a live embedding API
 
-### Not yet release-verified in 1.0.1
+### Not release-verified
 
 - non-OpenAI runtime provider paths
-  - no claim of full smoke coverage in 1.0.1
+  - no claim of full smoke coverage in `1.1.0`
+
+## Verified backend and memory modes
+
+### Fully release-verified
+
+- `local` backend mode
+- built-in `recall-http` backend mode
+- `reconnect` mode against the same `memorySpaceId`
+- scope-aware retrieval across `private`, `workspace`, `shared`, and `session`
+- export/import restore across clean installs using the same remote memory space
+
+### Supported with partial verification
+
+- `shared` cross-agent recall when installs intentionally use the same `sharedScope`
+  - verified through operator and retrieval tests plus remote roundtrip coverage
+  - still narrower than a broader multi-provider/team deployment matrix
 
 ## Verified install paths
 
@@ -55,13 +58,27 @@ These paths are verified on `main`, but are not yet claimed as a tagged release 
 - generated tarball install into a fresh consumer directory
 - standalone CLI execution from `dist/`
 - standalone CLI execution from installed package bin
+- remote reconnect/import/export roundtrip across two fresh consumers
 
-## Known unstable or limited areas
+## Verified operator paths
+
+- `openclaw-recall doctor`
+- `openclaw-recall status`
+- `openclaw-recall memory inspect`
+- `openclaw-recall memory explain`
+- `openclaw-recall memory prune-noise`
+- `openclaw-recall memory reindex`
+- `openclaw-recall memory compact`
+- `openclaw-recall profile inspect`
+- `openclaw-recall session inspect`
+- `openclaw-recall backend serve`
+
+## Known limited or partial areas
 
 - `compressionSavings` and `toolTokensSaved` are still `estimated`
   - workaround: treat savings as directional, not exact
-- provider smoke coverage is uneven
-  - workaround: prefer the verified OpenAI Responses path for first deployment
+- provider smoke coverage is still strongest on the verified OpenAI Responses path
+  - workaround: prefer the verified path for first deployment
 - plugin CLI exposure through `openclaw <subcommand>` is not reliable upstream
   - workaround: use the standalone `openclaw-recall` binary
 - OpenClaw may emit `plugins.allow is empty` warning noise in some install/info flows
@@ -69,12 +86,14 @@ These paths are verified on `main`, but are not yet claimed as a tagged release 
 - memory conflict resolution is still rule-based
   - workaround: inspect memory rows with `memory explain` and `memory inspect` when tuning behavior
 
-## Evidence used for 1.0.1
+## Evidence used for 1.1.0
 
 - `npm run build`
 - `npm run test:unit`
 - `npm run test:integration`
 - `npm run test:install`
-- `npm run smoke`
 - `npm run verify`
-- `npm publish --dry-run`
+- `npm run release:build`
+- `npm run test:tarball:sanity`
+- `npm run test:tarball`
+- `npm run test:remote-roundtrip`

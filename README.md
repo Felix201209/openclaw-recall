@@ -4,14 +4,14 @@ Persistent memory, context compression, and profile visibility for OpenClaw.
 
 OpenClaw Recall is an enhancement plugin for OpenClaw. It adds automatic memory write, cross-session recall, prompt compression, tool output compaction, and inspectable profile data without replacing OpenClaw's runtime or product shell.
 
-Current stable version: `1.0.1`.
+Current stable version: `1.1.0`.
 
 It now supports two persistent identity paths:
 
 - `local` mode: durable memory stays on the current OpenClaw home
 - `reconnect` mode: the same identity key or memory space id can reconnect to the same logical memory space across machines
 
-The current `main` branch also includes the first v1.1 backend foundation:
+`1.1.0` adds a release-grade v1.1 memory infrastructure layer:
 
 - built-in `recall-http` backend support for remote memory spaces
 - backend/operator CLI via `openclaw-recall backend serve`
@@ -117,7 +117,7 @@ The recommended first-use path is:
 
 If you already have prior transcripts or memory files, importing them is a better first proof than a synthetic seed chat.
 
-Import behavior in the current v1.1 line:
+Import behavior in `1.1.0`:
 
 - duplicate rows are merged or superseded instead of duplicated
 - `rejectedNoise`, `rejectedSensitive`, and `uncertainCandidates` are tracked separately
@@ -239,7 +239,7 @@ That data stays in inspect/debug paths only. Normal chat replies remain clean.
 
 ## Compatibility
 
-Verified for `1.0.1`:
+Verified for `1.1.0`:
 
 - Node.js `24.10.0` and `24.12.0`
 - OpenClaw `2026.3.13`
@@ -263,7 +263,7 @@ OpenClaw Recall does not pretend every number is exact:
 - OpenClaw plugin CLI exposure through `openclaw <subcommand>` is still upstream-limited; use `openclaw-recall`
 - OpenClaw may emit `plugins.allow is empty` warning noise in some install/info flows
 - memory conflict resolution is still rule-based, even though stable preference changes now supersede the most common old values
-- reconnect mode currently provides the identity/config/verify path first; fully remote memory backend implementations may still vary by deployment
+- reconnect and cloud-backed continuity in `1.1.0` use the built-in `recall-http` backend; generic external remote backends are not release-verified
 
 These are known release limitations, not blockers for normal use.
 
@@ -281,7 +281,7 @@ npm run verify
 npm run release:build
 ```
 
-The `main` branch is now close to `v1.1.0` feature completeness, but it is not tagged yet. Treat the new backend/reconnect/scope paths as `main`-branch verified work, not `1.0.1` release promises.
+This README describes the `1.1.0` release line. See [COMPATIBILITY.md](./COMPATIBILITY.md) for exact verified, supported, and partial coverage.
 
 ## Docs
 
