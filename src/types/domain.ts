@@ -18,6 +18,7 @@ export interface MemoryScoreBreakdown {
   semanticSimilarity: number;
   semanticContribution?: number;
   keywordContribution?: number;
+  rrfContribution?: number;
   salience: number;
   recency: number;
   ageDays?: number;

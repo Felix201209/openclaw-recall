@@ -1,22 +1,22 @@
 # Release Notes
 
-## OpenClaw Recall v1.2.0
+## OpenClaw Recall v1.3.0
 
-`1.2.0` is a real minor release because it materially improves Recall's memory composition and practical token efficiency. The focus is still memory-first: better retrieval composition, better prompt relevance-per-token, cleaner tool-output compaction, and stronger import/retrieval benchmarks without weakening hygiene or output safety.
+`1.3.0` is a real minor release because it materially improves Recall's hybrid retrieval composition and long-form import quality while keeping the project memory-first. The focus is still practical: better mixed recall, denser `RELEVANT MEMORY`, better preservation of useful imported project signal, and stronger token efficiency without weakening hygiene or output safety.
 
 ### Highlights
 
-- candidate-pool expansion and MMR-style diversification reduce duplicate-heavy recall
-- relation-aware retrieval stitching improves mixed recall across stable preference, project context, and active task/session state
+- RRF-style fusion now strengthens hybrid retrieval so preference, project, and task memories survive together more often
+- candidate-pool expansion, MMR-style diversification, and relation-aware stitching continue to reduce duplicate-heavy recall
 - `RELEVANT MEMORY` is less duplicate-heavy and more efficient per token
-- tool-output compaction preserves more useful structure, including commands, code blocks, and error-rich output
-- wrapper-heavy provider payloads are unwrapped before compaction so compression acts on useful text instead of JSON shells
-- import quality is stronger in practice: more useful signal survives while noise and sensitive rows remain rejected
-- new benchmark coverage proves retrieval, compaction, import, and operator behavior more directly
+- tool-output compaction still preserves useful structure, including commands, code blocks, wrapper-unwrapped text, and error-rich output
+- long-form import now chunks oversized source rows so more project signal survives later recall while noise and sensitive rows remain rejected
+- new v1.3 benchmark coverage proves retrieval fusion, import chunking, compaction, and operator behavior more directly
 
 ### User-visible benefits
 
 - recall now does a better job of mixing “who the user is”, “what the project is”, and “what the current task is”
+- restored/imported project context is less likely to collapse into a single coarse row
 - prompts waste less space on duplicate preference summaries
 - tool-output compaction keeps more high-value structure per token
 - imports are more likely to produce useful later recall instead of just adding rows

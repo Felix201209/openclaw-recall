@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.0
+
+- added RRF-style hybrid fusion so preference, project-context, and session/task memories are less likely to collapse into duplicate-heavy recall
+- improved long-form import normalization by chunking oversized memory and transcript inputs before extraction, preserving more useful project signal for later retrieval
+- kept prompt memory more relevance-dense by combining the earlier diversification work with stronger mixed-memory selection and duplicate-aware prompt injection
+- extended benchmark coverage with direct v1.3 retrieval-fusion and import-chunking fixtures, plus operator visibility checks for the new retrieval contribution data
+- reused a small MIT-licensed fusion utility from MemOS directly and documented attribution in `NOTICE` / `THIRD_PARTY_NOTICES.md`
+
 ## 1.2.0
 
 - improved retrieval composition with candidate-pool expansion, MMR-style diversification, and relation-aware retrieval stitching

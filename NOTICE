@@ -1,5 +1,7 @@
 OpenClaw Recall includes code adapted from the NovaClaw project and is designed to integrate with OpenClaw.
 
+OpenClaw Recall 1.3.0 also includes a small retrieval-fusion utility adapted from the MIT-licensed MemOS project, and retrieval-gating / long-text chunking ideas adapted from local memory-related source packages used during development.
+
 OpenClaw itself is distributed under the MIT License. This plugin does not bundle or replace the OpenClaw product shell.
 
 Source-level references and extraction mapping are documented in:

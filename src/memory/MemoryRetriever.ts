@@ -7,6 +7,7 @@ import type { ResolvedPluginConfig } from "../config/schema.js";
 import { isMemoryVisible } from "./scopes.js";
 import { explainSuppression } from "./MemoryRanker.js";
 import { effectiveImportance, explainLifecycleSuppression, isRetrievalEligible, lifecycleState } from "./hygiene.js";
+import { rrfFuse } from "./RrfFusion.js";
 
 export class MemoryRetriever {
   constructor(
@@ -39,7 +40,7 @@ export class MemoryRetriever {
     );
     const queryEmbedding = usedMode === "keyword" ? [] : await this.embeddings.embed(cleanQuery);
     const candidatePoolSize = Math.max(limit * 4, this.bootTopK * 2, 8);
-    const ranked = this.ranker.rank(cleanQuery, memories, queryEmbedding, usedMode).slice(0, candidatePoolSize);
+    const ranked = this.rankCandidates(cleanQuery, memories, queryEmbedding, usedMode, candidatePoolSize);
     const boot = options.sessionId
       ? await this.store.listBootCandidates(
           options.sessionId,
@@ -169,6 +170,53 @@ export class MemoryRetriever {
       }
     }
     return [...merged.values()].sort((left, right) => this.candidatePriority(query, right) - this.candidatePriority(query, left));
+  }
+
+  private rankCandidates(
+    query: string,
+    memories: MemoryRecord[],
+    queryEmbedding: number[],
+    usedMode: RetrievalMode,
+    candidatePoolSize: number,
+  ): MemoryRecord[] {
+    const combined = this.ranker.rank(query, memories, queryEmbedding, usedMode).slice(0, candidatePoolSize);
+    if (usedMode !== "hybrid") {
+      return combined;
+    }
+
+    const keywordRanked = this.ranker.rank(query, memories, [], "keyword").slice(0, candidatePoolSize);
+    const semanticRanked = this.ranker.rank(query, memories, queryEmbedding, "embedding").slice(0, candidatePoolSize);
+    const fusion = rrfFuse([
+      keywordRanked.map((memory) => ({ id: memory.id, score: memory.score ?? 0 })),
+      semanticRanked.map((memory) => ({ id: memory.id, score: memory.score ?? 0 })),
+      combined.map((memory) => ({ id: memory.id, score: memory.score ?? 0 })),
+    ]);
+
+    const byId = new Map<string, MemoryRecord>();
+    for (const memory of [...combined, ...keywordRanked, ...semanticRanked]) {
+      if (!byId.has(memory.id)) {
+        byId.set(memory.id, memory);
+      }
+    }
+
+    return [...byId.values()]
+      .map((memory) => {
+        const rrfContribution = (fusion.get(memory.id) ?? 0) * 100;
+        const finalScore = (memory.scoreBreakdown?.finalScore ?? memory.score ?? 0) + rrfContribution;
+        return {
+          ...memory,
+          score: finalScore,
+          scoreBreakdown: memory.scoreBreakdown
+            ? {
+                ...memory.scoreBreakdown,
+                rrfContribution,
+                finalScore,
+              }
+            : undefined,
+        };
+      })
+      .sort((left, right) => this.candidatePriority(query, right) - this.candidatePriority(query, left))
+      .slice(0, candidatePoolSize);
   }
 
   private diversifyCandidates(query: string, candidates: MemoryRecord[], limit: number): MemoryRecord[] {

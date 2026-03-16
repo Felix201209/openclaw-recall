@@ -113,6 +113,68 @@ test("status and profile inspect expose retrieval and hygiene outcomes for the i
   }
 });
 
+test("memory explain exposes rrf contribution after v1.3 retrieval fusion", async () => {
+  const tempDir = await createTempDir("openclaw-recall-operator-rrf-");
+  try {
+    const container = createTestContainer(tempDir);
+    const now = new Date().toISOString();
+    await container.memoryStore.upsertMany([
+      {
+        id: "pref-1",
+        kind: "preference",
+        summary: "User prefers concise Chinese replies.",
+        content: "User prefers concise Chinese replies.",
+        topics: ["concise", "chinese", "replies"],
+        entityKeys: ["recall"],
+        salience: 8.8,
+        fingerprint: "pref-1",
+        createdAt: now,
+        lastSeenAt: now,
+        ttlDays: 180,
+        decayRate: 0.01,
+        confidence: 0.9,
+        importance: 9,
+        active: true,
+        scope: "private",
+        scopeKey: "user:default",
+        sourceSessionId: "seed",
+        sourceTurnIds: ["seed-1"],
+        embedding: [0.9, 0.1, 0.2],
+      },
+      {
+        id: "semantic-1",
+        kind: "semantic",
+        summary: "Project focus is Recall import and retrieval quality.",
+        content: "Project focus is Recall import and retrieval quality.",
+        topics: ["project", "import", "retrieval", "quality"],
+        entityKeys: ["recall", "import"],
+        salience: 8.7,
+        fingerprint: "semantic-1",
+        createdAt: now,
+        lastSeenAt: now,
+        ttlDays: 120,
+        decayRate: 0.01,
+        confidence: 0.9,
+        importance: 8.9,
+        active: true,
+        scope: "workspace",
+        scopeKey: "workspace:default",
+        sourceSessionId: "seed",
+        sourceTurnIds: ["seed-2"],
+        embedding: [0.2, 0.9, 0.2],
+      },
+    ]);
+
+    const explain = await container.memoryRetriever.explainDetailed("记得我的偏好和当前项目重点", 3, {
+      sessionId: "s1",
+    });
+
+    assert.ok(explain.selected.some((memory) => typeof memory.scoreBreakdown?.rrfContribution === "number"));
+  } finally {
+    await cleanupTempDir(tempDir);
+  }
+});
+
 function runCli(args: string[], openclawRoot: string): any {
   return JSON.parse(
     execFileSync(tsxBin, ["src/cli/index.ts", ...args], {

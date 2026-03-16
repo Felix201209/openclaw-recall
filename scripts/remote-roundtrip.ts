@@ -52,7 +52,7 @@ async function main(): Promise<void> {
         sessionKey: "remote:2",
         runId: "remote-run-2",
         sessionFile: path.join(first.sessionDir, "remote-2.jsonl"),
-        prompt: "项目上下文：Recall v1.2 主要聚焦 retrieval、scope 和 import quality。",
+        prompt: "项目上下文：Recall v1.3 主要聚焦 retrieval、import normalization 和 compaction quality。",
       });
 
       const memoryExport = JSON.parse(
@@ -84,7 +84,7 @@ async function main(): Promise<void> {
       };
       const status = JSON.parse(execInstalledCli(["status", "--json"], second.consumerDir, second.openclawHome)) as Record<string, unknown>;
       const explain = JSON.parse(
-        execInstalledCli(["memory", "explain", "Felix 中文 backend import quality", "--json"], second.consumerDir, second.openclawHome),
+        execInstalledCli(["memory", "explain", "Felix 中文 retrieval import normalization compaction quality", "--json"], second.consumerDir, second.openclawHome),
       ) as Record<string, unknown>;
       const memoryList = JSON.parse(
         execInstalledCli(["memory", "list", "--json"], second.consumerDir, second.openclawHome),
@@ -99,7 +99,7 @@ async function main(): Promise<void> {
       assert.ok(Array.isArray(memoryList) && memoryList.length >= 2);
       assert.equal((memoryList[0].scope === "private" || memoryList[0].scope === "workspace" || memoryList[0].scope === "shared" || memoryList[0].scope === "session"), true);
       assert.equal(explain["retrievalMode"], "hybrid");
-      assert.match(recallReply, /Felix|中文|简洁|backend|scope|import quality|项目重点/i);
+      assert.match(recallReply, /Felix|中文|简洁|retrieval|import normalization|compaction quality|项目重点/i);
       assert.doesNotMatch(recallReply, /没有检索到稳定记忆/);
 
       process.stdout.write(

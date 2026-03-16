@@ -15,6 +15,7 @@ import type { PluginContainer } from "../plugin/runtime-state.js";
 import type { ResolvedPluginConfig } from "../config/schema.js";
 import { resolvePluginPaths } from "../storage/paths.js";
 import { assignMemoryScope } from "../memory/scopes.js";
+import { chunkImportedText } from "./ImportChunking.js";
 
 export class ImportService {
   private readonly paths = resolvePluginPaths();
@@ -342,14 +343,22 @@ function normalizeMemoryObjects(raw: unknown): { candidates: MemoryRecord[]; rej
       rejectedByNormalization += 1;
       continue;
     }
-    candidates.push(
-      buildMemoryRecord(kind, summary, text, String(record.sourceSessionId ?? "imported-memory"), {
-        scope: normalizeScope(record.scope),
-        scopeKey: typeof record.scopeKey === "string" ? record.scopeKey : undefined,
-        memoryGroup: typeof record.memoryGroup === "string" ? record.memoryGroup : undefined,
-        sensitive: record.sensitive === true,
-      }),
-    );
+    const chunks = chunkImportedText(summary, text);
+    for (const chunk of chunks) {
+      candidates.push(
+        buildMemoryRecord(kind, chunk.summary, chunk.content, String(record.sourceSessionId ?? "imported-memory"), {
+          scope: normalizeScope(record.scope),
+          scopeKey: typeof record.scopeKey === "string" ? record.scopeKey : undefined,
+          memoryGroup:
+            chunks.length > 1
+              ? `import:${fingerprint(summary)}:chunk:${chunk.index + 1}`
+              : typeof record.memoryGroup === "string"
+                ? record.memoryGroup
+                : undefined,
+          sensitive: record.sensitive === true,
+        }),
+      );
+    }
   }
   return { candidates, rejectedByNormalization };
 }
@@ -389,16 +398,26 @@ function normalizeTurnsIntoMemories(
       rejectedByNormalization += 1;
       continue;
     }
-    const extracted = container.memoryExtractor.extract({
-      id: String(turn.id ?? crypto.randomUUID()),
-      sessionId: String(turn.sessionId ?? turn.session_id ?? "imported-session"),
-      role,
+    const chunks = chunkImportedText(
+      sentenceSummary(text),
       text,
-      createdAt: String(turn.createdAt ?? turn.created_at ?? new Date().toISOString()),
-    } as ChatTurn);
-    imported.push(...container.memoryExtractor.limit(extracted.memories, 6));
+    );
+    for (const chunk of chunks) {
+      const extracted = container.memoryExtractor.extract({
+        id: String(turn.id ?? crypto.randomUUID()),
+        sessionId: String(turn.sessionId ?? turn.session_id ?? "imported-session"),
+        role,
+        text: chunk.content,
+        createdAt: String(turn.createdAt ?? turn.created_at ?? new Date().toISOString()),
+      } as ChatTurn);
+      imported.push(...container.memoryExtractor.limit(extracted.memories, 6));
+    }
   }
   return { candidates: imported, rejectedByNormalization };
+}
+
+function sentenceSummary(text: string): string {
+  return sanitizeIncomingUserText(text).split(/\r?\n/).find((line) => line.trim())?.trim().slice(0, 120) || "Imported transcript chunk";
 }
 
 function normalizeRole(value: unknown): ChatTurn["role"] | null {

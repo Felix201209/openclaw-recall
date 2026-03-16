@@ -2,7 +2,7 @@
 
 ## Release target
 
-This matrix applies to `1.2.0`.
+This matrix applies to `1.3.0`.
 
 ## Verified versions
 
@@ -33,7 +33,7 @@ This matrix applies to `1.2.0`.
 ### Not release-verified
 
 - non-OpenAI runtime provider paths
-  - no claim of full smoke coverage in `1.2.0`
+  - no claim of full smoke coverage in `1.3.0`
 
 ## Verified backend and memory modes
 
@@ -86,7 +86,7 @@ This matrix applies to `1.2.0`.
 - memory conflict resolution is still rule-based
   - workaround: inspect memory rows with `memory explain` and `memory inspect` when tuning behavior
 
-## Evidence used for 1.2.0
+## Evidence used for 1.3.0
 
 - `npm run build`
 - `npm run test:unit`
@@ -101,3 +101,4 @@ This matrix applies to `1.2.0`.
 - compaction benchmark fixtures
 - import benchmark fixtures
 - operator visibility benchmark fixtures
+- prompt-memory benchmark fixtures
