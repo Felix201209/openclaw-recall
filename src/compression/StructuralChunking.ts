@@ -89,23 +89,23 @@ export function prioritizeStructuredChunks(chunks: StructuredChunk[]): Structure
   });
 }
 
-export function renderStructuredChunk(chunk: StructuredChunk): string {
+export function renderStructuredChunk(chunk: StructuredChunk, maxChars = 180): string {
   if (chunk.kind === "error_stack") {
     const lines = chunk.content.split(/\r?\n/).filter(Boolean).slice(0, 3).join(" | ");
-    return `Error: ${sentenceFromText(lines, 180)}`;
+    return `Error: ${sentenceFromText(lines, maxChars)}`;
   }
   if (chunk.kind === "command") {
-    return `Command: ${sentenceFromText(chunk.content, 180)}`;
+    return `Command: ${sentenceFromText(chunk.content, maxChars)}`;
   }
   if (chunk.kind === "code_block") {
     const lines = chunk.content.split(/\r?\n/).filter(Boolean).slice(0, 5).join(" ");
-    return `Code: ${sentenceFromText(lines, 180)}`;
+    return `Code: ${sentenceFromText(lines, maxChars)}`;
   }
   if (chunk.kind === "list") {
     const lines = chunk.content.split(/\r?\n/).filter(Boolean).slice(0, 3).join(" | ");
-    return `List: ${sentenceFromText(lines, 180)}`;
+    return `List: ${sentenceFromText(lines, maxChars)}`;
   }
-  return `Fact: ${sentenceFromText(chunk.content, 180)}`;
+  return `Fact: ${sentenceFromText(chunk.content, maxChars)}`;
 }
 
 function extractBraceBlocks(

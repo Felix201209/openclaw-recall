@@ -1,0 +1,156 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import path from "node:path";
+import { PluginContainer } from "../src/plugin/runtime-state.js";
+import { resolvePluginConfig } from "../src/config/loader.js";
+import { createTempDir, cleanupTempDir } from "./helpers/temp-db.js";
+
+function createTestContainer(openclawHome: string): PluginContainer {
+  return new PluginContainer(
+    resolvePluginConfig({
+      env: {
+        ...process.env,
+        OPENCLAW_HOME: openclawHome,
+      },
+      pluginConfig: {
+        storageDir: path.join(openclawHome, ".openclaw", "plugins", "openclaw-recall"),
+        identity: { mode: "local" },
+      },
+      openclawHome: path.join(openclawHome, ".openclaw"),
+    }),
+    {
+      info: () => undefined,
+      warn: () => undefined,
+      error: () => undefined,
+    },
+  );
+}
+
+test("retrieval gate skips irrelevant memory work for command-like prompts but not recall prompts", async () => {
+  const tempDir = await createTempDir("openclaw-recall-retrieval-gate-");
+  try {
+    const container = createTestContainer(tempDir);
+    await container.memoryStore.upsertMany([
+      {
+        id: "pref-1",
+        kind: "preference",
+        summary: "User prefers concise Chinese replies.",
+        content: "User prefers concise Chinese replies.",
+        topics: ["concise", "chinese", "replies"],
+        entityKeys: [],
+        salience: 9,
+        fingerprint: "pref-1",
+        createdAt: new Date().toISOString(),
+        lastSeenAt: new Date().toISOString(),
+        ttlDays: 180,
+        decayRate: 0.01,
+        confidence: 0.9,
+        importance: 9,
+        active: true,
+        sourceSessionId: "seed",
+        sourceTurnIds: ["seed-1"],
+      },
+    ]);
+
+    const skipped = await container.prepareSessionContext({
+      sessionId: "s1",
+      prompt: "run tests",
+      messages: [],
+    });
+    const recalled = await container.prepareSessionContext({
+      sessionId: "s2",
+      prompt: "你记得我的偏好吗？",
+      messages: [],
+    });
+
+    assert.equal(skipped.memoryCandidates, 0);
+    assert.equal(skipped.memories.length, 0);
+    assert.ok(recalled.memoryCandidates >= 1);
+    assert.ok(recalled.memories.some((memory) => memory.kind === "preference"));
+  } finally {
+    await cleanupTempDir(tempDir);
+  }
+});
+
+test("recall retrieval mixes stable preference and current project context after import-style writes", async () => {
+  const tempDir = await createTempDir("openclaw-recall-retrieval-mix-");
+  try {
+    const container = createTestContainer(tempDir);
+    await container.memoryStore.upsertMany([
+      {
+        id: "pref-1",
+        kind: "preference",
+        summary: "User prefers Chinese responses and concise execution-oriented updates.",
+        content: "User prefers Chinese responses and concise execution-oriented updates.",
+        topics: ["chinese", "concise", "execution", "updates"],
+        entityKeys: [],
+        salience: 9,
+        fingerprint: "pref-mixed",
+        createdAt: new Date().toISOString(),
+        lastSeenAt: new Date().toISOString(),
+        ttlDays: 180,
+        decayRate: 0.01,
+        confidence: 0.9,
+        importance: 9.4,
+        active: true,
+        scope: "private",
+        scopeKey: "user:default",
+        sourceSessionId: "imported",
+        sourceTurnIds: ["imported-pref"],
+      },
+      {
+        id: "proj-1",
+        kind: "semantic",
+        summary: "Project focus is backend, scope, and import quality for Recall v1.1.",
+        content: "Project focus is backend, scope, and import quality for Recall v1.1.",
+        topics: ["backend", "scope", "import", "quality", "recall"],
+        entityKeys: [],
+        salience: 8.6,
+        fingerprint: "proj-focus",
+        createdAt: new Date().toISOString(),
+        lastSeenAt: new Date().toISOString(),
+        ttlDays: 120,
+        decayRate: 0.01,
+        confidence: 0.9,
+        importance: 9,
+        active: true,
+        scope: "workspace",
+        scopeKey: "workspace:default",
+        memoryGroup: "semantic:project",
+        sourceSessionId: "imported",
+        sourceTurnIds: ["imported-proj"],
+      },
+      {
+        id: "pref-2",
+        kind: "preference",
+        summary: "User prefers concise terminal-first answers.",
+        content: "User prefers concise terminal-first answers.",
+        topics: ["concise", "terminal", "answers"],
+        entityKeys: [],
+        salience: 8.7,
+        fingerprint: "pref-secondary",
+        createdAt: new Date().toISOString(),
+        lastSeenAt: new Date().toISOString(),
+        ttlDays: 180,
+        decayRate: 0.01,
+        confidence: 0.9,
+        importance: 9.1,
+        active: true,
+        scope: "private",
+        scopeKey: "user:default",
+        sourceSessionId: "imported",
+        sourceTurnIds: ["imported-pref-2"],
+      },
+    ]);
+
+    const result = await container.memoryRetriever.retrieveWithContext("你记得我的偏好和当前项目重点吗？", 2, {
+      sessionId: "s1",
+    });
+
+    assert.equal(result.memories.length, 2);
+    assert.equal(result.memories.some((memory) => memory.kind === "preference"), true);
+    assert.equal(result.memories.some((memory) => memory.kind === "semantic"), true);
+  } finally {
+    await cleanupTempDir(tempDir);
+  }
+});
