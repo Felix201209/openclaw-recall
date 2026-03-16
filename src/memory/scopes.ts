@@ -35,7 +35,7 @@ export function isMemoryVisible(
     return Boolean(config.identity.sharedScope?.trim()) &&
       scopeKey === defaultScopeKey("shared", config, sessionId ?? memory.sourceSessionId);
   }
-  return scopeKey === defaultScopeKey("agent_local", config, sessionId ?? memory.sourceSessionId);
+  return scopeKey === defaultScopeKey("session", config, sessionId ?? memory.sourceSessionId);
 }
 
 export function defaultScopeFor(kind: MemoryKind, config: ResolvedPluginConfig): MemoryScope {
@@ -43,7 +43,7 @@ export function defaultScopeFor(kind: MemoryKind, config: ResolvedPluginConfig):
     return "private";
   }
   if (kind === "session_state") {
-    return "agent_local";
+    return "session";
   }
   if (kind === "semantic") {
     return config.identity.mode === "shared" && config.identity.sharedScope ? "shared" : "workspace";
@@ -65,5 +65,5 @@ export function defaultScopeKey(
   if (scope === "shared") {
     return `shared:${config.identity.sharedScope ?? config.identity.workspaceScope ?? "default"}`;
   }
-  return `agent:${sessionId}`;
+  return `session:${sessionId}`;
 }

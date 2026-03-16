@@ -72,7 +72,7 @@ export class ImportService {
         preference: "private",
         semantic:
           this.config.identity.mode === "shared" && this.config.identity.sharedScope ? "shared" : "workspace",
-        session_state: "agent_local",
+        session_state: "session",
         episodic: "private",
         ...options.scopeMapping,
       },

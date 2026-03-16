@@ -76,7 +76,7 @@ export class ExportService {
 function summarizeScopes(records: Array<{ scope?: string }>): ExportReport["scopeCounts"] {
   return records.reduce<NonNullable<ExportReport["scopeCounts"]>>((summary, record) => {
     const scope = record.scope;
-    if (scope === "private" || scope === "workspace" || scope === "shared" || scope === "agent_local") {
+    if (scope === "private" || scope === "workspace" || scope === "shared" || scope === "session") {
       summary[scope] = (summary[scope] ?? 0) + 1;
     }
     return summary;

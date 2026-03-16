@@ -10,7 +10,7 @@ export interface ChatTurn {
 }
 
 export type MemoryKind = "preference" | "semantic" | "session_state" | "episodic";
-export type MemoryScope = "private" | "workspace" | "shared" | "agent_local";
+export type MemoryScope = "private" | "workspace" | "shared" | "session";
 export type RetrievalMode = "keyword" | "embedding" | "hybrid";
 
 export interface MemoryScoreBreakdown {
