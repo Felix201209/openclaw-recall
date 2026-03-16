@@ -115,7 +115,11 @@ Fix:
 ```bash
 openclaw-recall config init --mode reconnect --identity-key recall_xxx --memory-space space_xxx --write-openclaw
 openclaw-recall config validate
+openclaw-recall backend serve --port 4546 --data-dir .recall-http-backend
+openclaw-recall doctor
 ```
+
+If `doctor` still reports backend reachability problems, confirm that the endpoint, API key, and `memorySpaceId` all point to the same remote backend.
 
 ## Import found files but wrote nothing
 

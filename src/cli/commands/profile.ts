@@ -32,6 +32,11 @@ export function registerProfileCommands(program: Command): void {
           profile
             ? {
                 ...profile,
+                health: {
+                  retrieval: profile.retrievalCount > 0 ? "active" : "idle",
+                  compression:
+                    profile.compressionSavings > 0 || profile.toolTokensSaved > 0 ? "active" : "idle",
+                },
                 summary: {
                   prompt: `${profile.promptTokens} (${profile.promptTokensSource})`,
                   retrieval: {
@@ -48,6 +53,13 @@ export function registerProfileCommands(program: Command): void {
                   },
                   toolCompaction: `${profile.toolTokensSaved} (${profile.toolTokensSavedSource})`,
                   compression: `${profile.compressionSavings} (${profile.compressionSavingsSource})`,
+                },
+                sources: {
+                  promptTokens: profile.promptTokensSource,
+                  toolTokens: profile.toolTokensSource,
+                  toolTokensSaved: profile.toolTokensSavedSource,
+                  historySummaryTokens: profile.historySummaryTokensSource,
+                  compressionSavings: profile.compressionSavingsSource,
                 },
               }
             : null,

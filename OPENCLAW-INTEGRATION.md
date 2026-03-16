@@ -86,6 +86,12 @@ openclaw-recall config validate
 - reserved for deployments where a remote identity-backed memory service exists
 - this release wires config, validation, doctor, and UX for cloud-backed reconnect flows, but backend implementations may vary by deployment
 
+### Built-in `recall-http` path on `main`
+
+- the current `main` branch includes a built-in `recall-http` backend path
+- it is exercised through clean-consumer reconnect/import/export roundtrip tests
+- treat it as near-release `v1.1.0` functionality, not part of the tagged `1.0.1` contract
+
 Temporarily disable automatic memory writes without uninstalling the plugin:
 
 ```bash

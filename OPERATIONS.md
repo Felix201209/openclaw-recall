@@ -27,6 +27,7 @@ openclaw-recall profile list
 - recent tool compaction evidence
 - recent profile path integrity
 - identity/reconnect configuration
+- remote backend reachability and visible memory spaces
 - import system health and latest import report
 - export path writability and recovery readiness
 
@@ -42,6 +43,7 @@ openclaw-recall memory reindex --dry-run
 openclaw-recall memory reindex
 openclaw-recall memory compact --dry-run
 openclaw-recall memory compact
+openclaw-recall backend serve --port 4546 --data-dir .recall-http-backend
 openclaw-recall session inspect <sessionId>
 ```
 

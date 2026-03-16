@@ -30,8 +30,25 @@ export function registerStatusCommands(program: Command): void {
         summary[key] = (summary[key] ?? 0) + 1;
         return summary;
       }, {});
+      const warnings = [
+        enabled ? null : "plugin-disabled",
+        backendHealth.ok ? null : "backend-unreachable",
+        resolved.retrieval.mode !== "keyword" && container.memoryRetriever.embeddingAvailability() === "unavailable"
+          ? "embeddings-unavailable"
+          : null,
+        hygiene.score < 85 ? "memory-hygiene-degraded" : null,
+        identityStatus.warnings[0] ?? null,
+      ].filter(Boolean);
+      const health =
+        !enabled || !backendHealth.ok
+          ? "degraded"
+          : hygiene.score < 85 || warnings.length > 0
+            ? "partial"
+            : "healthy";
       printOutput(this, {
         enabled,
+        health,
+        warnings,
         mode: identityStatus.mode,
         identity: identityStatus,
         backendHealth,
@@ -75,6 +92,12 @@ export function registerStatusCommands(program: Command): void {
         lastReindex: latestReindex,
         lastCompact: latestCompact,
         hygiene,
+        lifecycleSummary: {
+          staleSemanticCount: hygiene.staleSemanticCount,
+          supersededStaleCount: hygiene.supersededStaleCount,
+          expiredActiveCount: hygiene.expiredActiveCount,
+          retrievalIneligibleCount: hygiene.retrievalIneligibleCount,
+        },
         noisyActiveMemoryCount: noisyCandidates.length,
         scopeCounts,
         lastRecoveryWarning: identityStatus.warnings[0] ?? null,

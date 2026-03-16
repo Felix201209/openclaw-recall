@@ -1,7 +1,7 @@
 import { cosineSimilarity } from "./EmbeddingProvider.js";
 import { explainSuppressedMemory, hasStablePreferenceSignal, shouldSuppressMemory } from "../shared/safety.js";
 import { MemoryRecord, RetrievalMode } from "../types/domain.js";
-import { keywordMatchCount } from "./hygiene.js";
+import { effectiveImportance, isStaleSemantic, keywordMatchCount, lifecycleState } from "./hygiene.js";
 
 export class MemoryRanker {
   rank(
@@ -23,6 +23,24 @@ export class MemoryRanker {
         const ageDays = (now - new Date(memory.createdAt).getTime()) / (1000 * 60 * 60 * 24);
         const freshness = Math.max(0, 1.5 - ageDays * memory.decayRate);
         const ttlFactor = memory.ttlDays ? Math.max(0.15, 1 - ageDays / memory.ttlDays) : 1;
+        const decayedImportance = effectiveImportance(memory);
+        const scopeWeight =
+          memory.scope === "private"
+            ? 1.2
+            : memory.scope === "workspace"
+              ? 1
+              : memory.scope === "shared"
+                ? 0.92
+                : 0.78;
+        const semanticAgePenalty = isStaleSemantic(memory) ? 3.4 : 0;
+        const lifecyclePenalty =
+          lifecycleState(memory) === "expired"
+            ? 5
+            : lifecycleState(memory) === "superseded"
+              ? 6
+              : lifecycleState(memory) === "stale"
+                ? 2.5
+                : 0;
         const typeBias =
           memory.kind === "preference"
             ? 1.55
@@ -32,7 +50,6 @@ export class MemoryRanker {
                 ? 0.72
                 : 0.08;
         const confidence = memory.confidence ?? 0.7;
-        const importance = memory.importance ?? memory.salience;
         const stablePreferenceBoost =
           memory.kind === "preference" && hasStablePreferenceSignal(`${memory.summary}\n${memory.content}`) ? 1.4 : 0;
         const reusableConstraintBoost =
@@ -49,13 +66,16 @@ export class MemoryRanker {
           semanticContribution +
           keywordContribution +
           memory.salience * 0.8 +
-          importance * 0.45 +
+          decayedImportance * 0.45 +
           freshness * 2 +
           confidence * 1.5 +
           ttlFactor +
+          scopeWeight +
           stablePreferenceBoost +
           reusableConstraintBoost +
           typeBias -
+          semanticAgePenalty -
+          lifecyclePenalty -
           redundancyPenalty;
         return {
           memory: {
@@ -68,6 +88,11 @@ export class MemoryRanker {
               keywordContribution,
               salience: memory.salience,
               recency: freshness,
+              ageDays,
+              effectiveImportance: decayedImportance,
+              scopeWeight,
+              semanticAgePenalty,
+              lifecyclePenalty,
               confidence,
               typeWeight: typeBias,
               overlap: overlap + entityOverlap,

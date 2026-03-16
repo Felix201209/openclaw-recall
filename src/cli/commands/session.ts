@@ -25,12 +25,21 @@ export function registerSessionCommands(program: Command): void {
           printOutput(this, null);
           return;
         }
+        const state = await container.stateStore.get(sessionId);
+        const transcript = await container.eventStore.listTurns(sessionId);
+        const toolResults = await container.toolOutputStore.listSession(sessionId, 25);
+        const profiles = await container.profileStore.list(25, { sessionId });
         printOutput(this, {
           summary,
-          state: await container.stateStore.get(sessionId),
-          transcript: await container.eventStore.listTurns(sessionId),
-          toolResults: await container.toolOutputStore.listSession(sessionId, 25),
-          profiles: await container.profileStore.list(25, { sessionId }),
+          state,
+          transcript,
+          toolResults,
+          profiles,
+          profileSummary: {
+            latestRunId: profiles[0]?.runId ?? null,
+            retrievalModes: Array.from(new Set(profiles.map((profile) => profile.retrievalMode))),
+            memoryWrites: profiles.reduce((sum, profile) => sum + profile.memoryWritten, 0),
+          },
         });
       }),
   );

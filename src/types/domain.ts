@@ -20,6 +20,11 @@ export interface MemoryScoreBreakdown {
   keywordContribution?: number;
   salience: number;
   recency: number;
+  ageDays?: number;
+  effectiveImportance?: number;
+  scopeWeight?: number;
+  semanticAgePenalty?: number;
+  lifecyclePenalty?: number;
   confidence: number;
   typeWeight: number;
   overlap: number;

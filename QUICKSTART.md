@@ -96,6 +96,7 @@ npm run smoke
 
 ```bash
 npm run verify
+npm run test:remote-roundtrip
 ```
 
 That additionally checks:
@@ -104,6 +105,9 @@ That additionally checks:
 - install from generated tarball
 - OpenClaw plugin load from installed package path
 - installed CLI execution for doctor/status/session inspect
+- built-in `recall-http` backend serve
+- reconnect to the same remote memory space from a clean consumer install
+- import/export restore behavior and restored doctor/status/memory explain output
 
 ## What success looks like
 

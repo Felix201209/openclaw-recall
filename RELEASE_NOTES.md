@@ -55,3 +55,17 @@ openclaw-recall status
 - OpenAI-compatible embeddings are supported but not covered by the strongest smoke path
 - some OpenClaw install/info flows may emit `plugins.allow is empty` warning noise
 - memory conflict resolution remains rule-based
+
+## Draft for v1.1.0 (not released yet)
+
+Current `main` work is closing the remaining `v1.1.0` blockers:
+
+- built-in `recall-http` backend path
+- reconnectable remote memory spaces
+- hybrid retrieval explainability
+- explicit `private` / `workspace` / `shared` / `session` scope behavior
+- smarter import/export/recovery reports
+- lifecycle hygiene for stale semantic, superseded, expired, and retrieval-ineligible records
+- clean-consumer reconnect/import/export roundtrip validation
+
+This section is a draft only. Do not treat it as a published release note yet.

@@ -190,10 +190,10 @@ export function registerDoctorCommands(program: Command): void {
                   : "warn",
             detail:
               hygiene.score >= 85
-                ? `hygiene=${hygiene.score}, noisy=${hygiene.noisyActiveCount}, supersededStale=${hygiene.supersededStaleCount}, duplicates=${hygiene.duplicateClusters}`
+                ? `hygiene=${hygiene.score}, noisy=${hygiene.noisyActiveCount}, staleSemantic=${hygiene.staleSemanticCount}, retrievalIneligible=${hygiene.retrievalIneligibleCount}, supersededStale=${hygiene.supersededStaleCount}, duplicates=${hygiene.duplicateClusters}`
                 : latestPrune
-                  ? `hygiene=${hygiene.score}, noisy=${hygiene.noisyActiveCount}, supersededStale=${hygiene.supersededStaleCount}, duplicates=${hygiene.duplicateClusters}; latest prune=${latestPrune.createdAt} (dryRun=${latestPrune.dryRun}, pruned=${latestPrune.pruned}), reindex=${latestReindex?.createdAt ?? "none"}, compact=${latestCompact?.createdAt ?? "none"}`
-                  : `hygiene=${hygiene.score}, noisy=${hygiene.noisyActiveCount}, supersededStale=${hygiene.supersededStaleCount}, duplicates=${hygiene.duplicateClusters}; run \`openclaw-recall memory prune-noise --dry-run\` first`,
+                  ? `hygiene=${hygiene.score}, noisy=${hygiene.noisyActiveCount}, staleSemantic=${hygiene.staleSemanticCount}, retrievalIneligible=${hygiene.retrievalIneligibleCount}, supersededStale=${hygiene.supersededStaleCount}, duplicates=${hygiene.duplicateClusters}; latest prune=${latestPrune.createdAt} (dryRun=${latestPrune.dryRun}, pruned=${latestPrune.pruned}), reindex=${latestReindex?.createdAt ?? "none"}, compact=${latestCompact?.createdAt ?? "none"}`
+                  : `hygiene=${hygiene.score}, noisy=${hygiene.noisyActiveCount}, staleSemantic=${hygiene.staleSemanticCount}, retrievalIneligible=${hygiene.retrievalIneligibleCount}, supersededStale=${hygiene.supersededStaleCount}, duplicates=${hygiene.duplicateClusters}; run \`openclaw-recall memory prune-noise --dry-run\` first`,
           },
           {
             name: "retrieval pipeline",

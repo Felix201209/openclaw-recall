@@ -6,6 +6,16 @@ This matrix applies to `1.0.1`.
 
 The `main` branch may contain post-`1.0.1` development work for `v1.1.0`; do not treat those paths as release-verified unless they are called out below.
 
+## Near-release `main` verification for v1.1.0 work
+
+These paths are verified on `main`, but are not yet claimed as a tagged release matrix:
+
+- built-in `recall-http` backend serve
+- clean-consumer reconnect to the same `memorySpaceId`
+- export/import restore across two installs
+- scope metadata persistence across remote reconnect flows
+- `doctor` / `status` / `memory explain` on the restored install
+
 ## Verified versions
 
 ### OpenClaw

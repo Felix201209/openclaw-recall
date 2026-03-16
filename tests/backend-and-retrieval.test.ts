@@ -373,3 +373,56 @@ test("memory explain exposes retrieval contributions and suppressed noisy rows",
     await cleanupTempDir(tempDir);
   }
 });
+
+test("stale semantic facts remain inspectable but stop polluting retrieval", async () => {
+  const tempDir = await createTempDir("openclaw-recall-stale-semantic-");
+  try {
+    const config = buildConfig({
+      storageDir: tempDir,
+      databasePath: path.join(tempDir, "memory.sqlite"),
+      retrieval: {
+        mode: "hybrid",
+        fallbackToKeyword: true,
+      },
+    });
+    const store = new MemoryStore(
+      new PluginDatabase(config.databasePath),
+      createEmbeddingProvider(config),
+      0.92,
+      config,
+    );
+    const now = Date.now();
+    await store.upsertMany([
+      buildMemory("Project context: old focus was legacy wrappers.", {
+        kind: "semantic",
+        memoryGroup: "semantic:project",
+        scope: "workspace",
+        scopeKey: "workspace:default",
+        createdAt: new Date(now - 70 * 24 * 60 * 60 * 1000).toISOString(),
+        lastSeenAt: new Date(now - 70 * 24 * 60 * 60 * 1000).toISOString(),
+        lastAccessedAt: new Date(now - 40 * 24 * 60 * 60 * 1000).toISOString(),
+        importance: 6.5,
+      }),
+      buildMemory("Project context: current focus is backend, scope, and import quality.", {
+        kind: "semantic",
+        memoryGroup: "semantic:project-current",
+        scope: "workspace",
+        scopeKey: "workspace:default",
+        importance: 9.2,
+      }),
+    ]);
+
+    const ranker = new MemoryRanker();
+    const retriever = new MemoryRetriever(store, ranker, createEmbeddingProvider(config), 4, config);
+    const result = await retriever.retrieveWithContext("project current focus import quality", 5, {});
+    const explain = await retriever.explainDetailed("project current focus import quality", 5, {});
+    const all = await store.listAll();
+
+    assert.equal(all.length, 2);
+    assert.equal(result.memories.length, 1);
+    assert.match(result.memories[0].summary, /current focus/i);
+    assert(explain.suppressed.some((row) => row.reasons.includes("stale-semantic")));
+  } finally {
+    await cleanupTempDir(tempDir);
+  }
+});

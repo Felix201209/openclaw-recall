@@ -18,6 +18,8 @@ The current `main` branch also includes the first v1.1 backend foundation:
 - hybrid retrieval foundation with explicit `keyword` / `embedding` / `hybrid` modes
 - `private` / `workspace` / `shared` / `session` scope-aware retrieval rules
 - `semantic` memory now defaults to `workspace`; `shared` remains explicit and opt-in
+- clean-consumer reconnect/import/export roundtrip coverage against the built-in backend
+- lifecycle hygiene signals for stale semantic, superseded, expired, and retrieval-ineligible records
 
 ## Why OpenClaw users install it
 
@@ -271,11 +273,14 @@ npm run check
 npm run build
 npm run test:unit
 npm run test:integration
+npm run test:remote-roundtrip
 npm run test:install
 npm run smoke
 npm run verify
 npm run release:build
 ```
+
+The `main` branch is now close to `v1.1.0` feature completeness, but it is not tagged yet. Treat the new backend/reconnect/scope paths as `main`-branch verified work, not `1.0.1` release promises.
 
 ## Docs
 

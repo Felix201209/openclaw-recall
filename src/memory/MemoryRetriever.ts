@@ -6,6 +6,7 @@ import { sanitizeIncomingUserText } from "../shared/safety.js";
 import type { ResolvedPluginConfig } from "../config/schema.js";
 import { isMemoryVisible } from "./scopes.js";
 import { explainSuppression } from "./MemoryRanker.js";
+import { effectiveImportance, explainLifecycleSuppression, isRetrievalEligible, lifecycleState } from "./hygiene.js";
 
 export class MemoryRetriever {
   constructor(
@@ -88,11 +89,22 @@ export class MemoryRetriever {
       isMemoryVisible(memory, this.config, options.sessionId),
     );
     const suppressed = all
-      .map((memory) => ({ memory, reasons: explainSuppression(memory) }))
+      .map((memory) => ({
+        memory,
+        reasons: Array.from(
+          new Set([
+            ...explainSuppression(memory),
+            ...explainLifecycleSuppression(memory),
+            ...(isRetrievalEligible(memory) ? [] : ["retrieval-ineligible"]),
+          ]),
+        ),
+      }))
       .filter((entry) => entry.reasons.length > 0)
       .map((entry) => ({
         id: entry.memory.id,
         summary: entry.memory.summary,
+        lifecycle: lifecycleState(entry.memory),
+        effectiveImportance: effectiveImportance(entry.memory),
         reasons: entry.reasons,
       }));
     const selected = (await this.retrieveWithContext(cleanQuery, limit, options));

@@ -320,6 +320,40 @@ test("compact preserves superseded memory rows while shrinking stale content", a
   }
 });
 
+test("hygiene summary counts stale semantic and retrieval-ineligible records", async () => {
+  const tempDir = await createTempDir("openclaw-memory-store-");
+  try {
+    const store = new MemoryStore(
+      new PluginDatabase(path.join(tempDir, "memory.sqlite")),
+      embeddingProvider,
+      0.92,
+    );
+
+    const now = Date.now();
+    await store.upsertMany([
+      {
+        ...memory({
+          kind: "semantic",
+          summary: "Old project context: wrappers were the focus.",
+          memoryGroup: "semantic:project-old",
+        }),
+        createdAt: new Date(now - 75 * 24 * 60 * 60 * 1000).toISOString(),
+        lastSeenAt: new Date(now - 75 * 24 * 60 * 60 * 1000).toISOString(),
+        lastAccessedAt: new Date(now - 35 * 24 * 60 * 60 * 1000).toISOString(),
+        importance: 6.2,
+      },
+    ]);
+
+    const summary = await store.hygieneSummary();
+    assert.equal(summary.staleSemanticCount, 1);
+    assert.equal(summary.retrievalIneligibleCount, 1);
+    const search = await store.search("project context");
+    assert.equal(search.length, 0);
+  } finally {
+    await cleanupTempDir(tempDir);
+  }
+});
+
 function memory(params: {
   kind: MemoryRecord["kind"];
   summary: string;

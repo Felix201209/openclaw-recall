@@ -19,6 +19,7 @@ export function registerConfigCommands(program: Command): void {
       .description("Print or write a starter plugin config entry")
       .option("--mode <mode>", "Identity mode: local | reconnect | cloud | shared", "local")
       .option("--backend <type>", "Backend type: local | recall-http | custom")
+      .option("--backend-type <type>", "Backend type: local | recall-http | custom")
       .option("--identity-key <key>", "Persistent identity key for reconnect mode")
       .option("--memory-space <id>", "Existing memory space id")
       .option("--api-key <key>", "Remote memory backend API key")
@@ -34,7 +35,7 @@ export function registerConfigCommands(program: Command): void {
         const entry = buildDefaultPluginEntry({
           identity: {
             mode: options.mode,
-            backendType: options.backend ?? (options.mode === "local" ? "local" : "recall-http"),
+            backendType: options.backendType ?? options.backend ?? (options.mode === "local" ? "local" : "recall-http"),
             identityKey: options.identityKey,
             apiKey: options.apiKey,
             memorySpaceId: options.memorySpace,

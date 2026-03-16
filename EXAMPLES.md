@@ -105,6 +105,25 @@ Expected result:
 - the real prune pass deactivates them instead of silently deleting everything
 - `reindex` refreshes old rows into the current scope/fingerprint/suppression model
 - `compact` keeps stale history inspectable while shrinking oversized inactive rows
+
+## Remote reconnect roundtrip
+
+```bash
+openclaw-recall backend serve --port 4546 --data-dir .recall-http-backend
+openclaw-recall config init --mode reconnect --backend-type recall-http --endpoint http://127.0.0.1:4546 --memory-space team-alpha --identity-key team-alpha-key --write-openclaw
+openclaw-recall export memory
+openclaw-recall import run <exported-memory.json>
+openclaw-recall doctor
+openclaw-recall status
+openclaw-recall memory explain "Felix 中文 backend import quality"
+```
+
+Expected result:
+
+- `status.backendType` is `recall-http`
+- `status.memorySpaceId` matches the configured shared space
+- `availableMemorySpaces` includes the restored space
+- `memory explain` shows `retrievalMode`, selected rows, and suppressed rows without leaking debug data into normal chat
 - later `memory explain` results stop surfacing those noisy rows
 
 ## Backup and recovery demo

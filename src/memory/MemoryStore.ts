@@ -13,7 +13,15 @@ import type {
   MemoryWriteResult,
 } from "../backend/MemoryBackend.js";
 import { ReconnectBackend } from "../backend/ReconnectBackend.js";
-import { analyzeMemoryHygiene, buildCompactedMemory, buildReindexedMemory, type HygieneSummary } from "./hygiene.js";
+import {
+  analyzeMemoryHygiene,
+  buildCompactedMemory,
+  buildReindexedMemory,
+  effectiveImportance,
+  explainLifecycleSuppression,
+  isRetrievalEligible,
+  type HygieneSummary,
+} from "./hygiene.js";
 
 export class MemoryStore {
   private readonly backend: MemoryBackend;
@@ -37,7 +45,9 @@ export class MemoryStore {
 
   async search(query?: string): Promise<MemoryRecord[]> {
     const memories = await this.backend.searchMemory(query);
-    return memories.filter((memory) => !shouldSuppressMemory(memory));
+    return memories
+      .filter((memory) => isRetrievalEligible(memory))
+      .filter((memory) => !shouldSuppressMemory(memory));
   }
 
   async getById(id: string): Promise<MemoryRecord | null> {
@@ -52,6 +62,7 @@ export class MemoryStore {
     const memories = await this.listActive();
     return memories
       .filter((memory) => !shouldSuppressMemory(memory))
+      .filter((memory) => isRetrievalEligible(memory))
       .filter((memory) =>
         memory.kind === "preference" ||
         memory.kind === "semantic" ||
@@ -60,7 +71,7 @@ export class MemoryStore {
       .sort((left, right) => {
         const leftBoost = left.kind === "preference" ? 3 : left.kind === "semantic" ? 2 : 1;
         const rightBoost = right.kind === "preference" ? 3 : right.kind === "semantic" ? 2 : 1;
-        return right.salience + rightBoost - (left.salience + leftBoost);
+        return effectiveImportance(right) + rightBoost - (effectiveImportance(left) + leftBoost);
       })
       .slice(0, limit);
   }
@@ -177,6 +188,7 @@ export class MemoryStore {
     return memories.slice(0, limit).map((memory) => ({
       ...memory,
       retrievalReason: `Candidate memory for query "${query}".`,
+      suppressedReasons: explainLifecycleSuppression(memory),
     }));
   }
 

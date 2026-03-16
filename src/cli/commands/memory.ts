@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import crypto from "node:crypto";
 import { explainSuppression } from "../../memory/MemoryRanker.js";
+import { effectiveImportance, explainLifecycleSuppression, isRetrievalEligible, lifecycleState } from "../../memory/hygiene.js";
 import { resolvePluginPaths } from "../../storage/paths.js";
 import { writeJsonFile } from "../../shared/fileStore.js";
 import type { MaintenanceReport, PruneReport } from "../../types/domain.js";
@@ -32,7 +33,10 @@ export function registerMemoryCommands(program: Command): void {
           memory
             ? {
                 ...memory,
-                suppressedReasons: explainSuppression(memory),
+                lifecycle: lifecycleState(memory),
+                retrievalEligible: isRetrievalEligible(memory),
+                effectiveImportance: effectiveImportance(memory),
+                suppressedReasons: Array.from(new Set([...explainSuppression(memory), ...explainLifecycleSuppression(memory)])),
               }
             : null,
         );
