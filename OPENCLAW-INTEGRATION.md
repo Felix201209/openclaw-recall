@@ -1,179 +1,78 @@
 # OpenClaw Integration
 
-## Integration shape
+How OpenClaw Recall integrates with OpenClaw, and how identity and configuration are managed.
 
-OpenClaw Recall integrates as a normal OpenClaw plugin package. It does not patch OpenClaw source files and does not require modifying the installed OpenClaw package.
+---
 
-Primary install method:
+## Identity Modes
 
-- `openclaw plugins install --link /path/to/openclaw-recall`
+OpenClaw Recall supports two persistent identity paths:
 
-## Install flow
+- `local` — durable memory stays on the current OpenClaw home
+- `reconnect` — the same identity key or memory space ID reconnects the same logical memory space across machines
 
-### Source checkout
-
-```bash
-cd /path/to/openclaw-recall
-npm install
-npm run build
-openclaw plugins install --link .
-```
-
-### Installed package path
-
-```bash
-npm install @felixypz/openclaw-recall
-openclaw plugins install --link ./node_modules/@felixypz/openclaw-recall
-```
-
-### Verify discovery
-
-```bash
-openclaw plugins info openclaw-recall
-openclaw plugins doctor
-openclaw-recall doctor
-openclaw-recall status
-```
-
-## Config path and state path
-
-If `OPENCLAW_HOME=/path/root`, OpenClaw uses:
-
-```text
-/path/root/.openclaw/openclaw.json
-```
-
-OpenClaw Recall stores its runtime data under:
-
-```text
-/path/root/.openclaw/plugins/openclaw-recall/
-```
-
-## Config precedence
-
-Resolution order:
-
-1. environment variables `OPENCLAW_RECALL_*`
-2. `plugins.entries.openclaw-recall.config`
-3. defaults from `src/config/defaults.ts`
-
-Legacy `OPENCLAW_MEMORY_PLUGIN_*` variables are still accepted as compatibility aliases during the rename transition.
-
-Starter entry helpers:
+Use `local` for machine-local durable memory only.
+Use `reconnect` when you already have an identity key or memory space ID and want to reconnect on another machine or a fresh OpenClaw home.
 
 ```bash
 openclaw-recall config init --mode local
-openclaw-recall config init --mode local --write-openclaw
 openclaw-recall config init --mode reconnect --identity-key recall_xxx --memory-space space_xxx
 openclaw-recall config validate
 ```
 
-## Identity modes
+> **Security:** Identity keys are secrets. Store them in a password manager or another secure secret store.
 
-### `local`
+---
 
-- plugin state lives under the current OpenClaw home
-- best for a single machine or local-first workflow
+## Identity Environment Variables
 
-### `reconnect`
+```
+OPENCLAW_RECALL_IDENTITY_MODE
+OPENCLAW_RECALL_IDENTITY_KEY
+OPENCLAW_RECALL_MEMORY_SPACE_ID
+OPENCLAW_RECALL_IDENTITY_API_KEY
+OPENCLAW_RECALL_IDENTITY_ENDPOINT
+OPENCLAW_RECALL_EXPORT_DIRECTORY
+```
 
-- uses an identity key and/or memory space id
-- intended for reconnecting the same logical memory space on a new machine
-- keep the identity key secret; it is part of your recovery path
+---
 
-### `cloud`
+## Plugin Registration
 
-- uses a remote identity-backed memory service
-- in `1.2.0`, the built-in release-verified remote path is `recall-http`
-- use `cloud` or `reconnect` when the endpoint, identity, and memory space need to follow you across machines
-
-### Built-in `recall-http` path
-
-- `1.2.0` includes a built-in `recall-http` backend path
-- it is exercised through clean-consumer reconnect/import/export roundtrip tests
-- restored installs surface project focus or stable preferences in natural-language recall, not only in inspect output
-
-Temporarily disable automatic memory writes without uninstalling the plugin:
+After install, verify the plugin is registered correctly:
 
 ```bash
-OPENCLAW_RECALL_AUTO_WRITE=false
+openclaw plugins info openclaw-recall
+openclaw-recall config validate
+openclaw-recall doctor
 ```
 
-## Hook behavior
+OpenClaw may emit a `plugins.allow is empty` warning in some install or info flows — this is known noise and does not affect functionality.
 
-### `before_prompt_build`
+---
 
-- load session state
-- retrieve boot memory and relevant memory
-- compress older history
-- assemble injected prompt layers
+## Reconnect and Cloud Continuity
 
-### `after_tool_call`
+`reconnect` mode uses the built-in `recall-http` backend. Generic external remote backends are not release-verified in `1.3.0`.
 
-- compact tool output
-- store summary plus raw payload reference
+For cross-machine continuity:
+1. Export your identity key from the original machine
+2. Store it securely
+3. On the new machine: `openclaw-recall config init --mode reconnect --identity-key <key> --memory-space <id>`
 
-### `tool_result_persist`
+---
 
-- replace large tool payloads with compacted text in the persisted path
+## Inspect Routes
 
-### `agent_end`
+OpenClaw Recall exposes an inspection surface inside OpenClaw:
 
-- store transcript turns
-- extract and write new memories
-- update session state
-- record turn profile
-
-## Enable, disable, uninstall
-
-```bash
-openclaw plugins enable openclaw-recall
-openclaw plugins disable openclaw-recall
-openclaw plugins uninstall openclaw-recall
+```
+/plugins/openclaw-recall/dashboard
+/plugins/openclaw-recall/status
+/plugins/openclaw-recall/memories
+/plugins/openclaw-recall/profiles
+/plugins/openclaw-recall/sessions
+/plugins/openclaw-recall/sessions/:sessionId
 ```
 
-## Import, export, recovery
-
-```bash
-openclaw-recall import dry-run
-openclaw-recall import run
-openclaw-recall import status
-openclaw-recall export memory
-openclaw-recall export profile
-openclaw-recall export session --session <sessionId>
-```
-
-Recommended sequence:
-
-1. install and validate
-2. import old sessions or memory files
-3. export a backup after the import succeeds
-4. keep the identity key and exports together for recovery
-
-## Inspect route
-
-Default path:
-
-```text
-/plugins/openclaw-recall
-```
-
-Endpoints:
-
-- `/dashboard`
-- `/status`
-- `/memories`
-- `/memories/:id`
-- `/profiles`
-- `/profiles/:runId`
-- `/sessions`
-- `/sessions/:sessionId`
-
-## Compatibility and limits
-
-- The supported operator surface is the standalone `openclaw-recall` binary. OpenClaw plugin metadata can advertise plugin commands, but current OpenClaw command parsing does not reliably expose the plugin's command tree as `openclaw <subcommand>`.
-- Embeddings default to local hashed vectors to avoid forcing external dependencies. OpenAI-compatible embeddings are optional.
-- Prompt token accounting can be `exact` when the provider emits usage metadata. Compression savings and tool compaction savings remain `estimated`.
-- Some OpenClaw install/info flows may emit a `plugins.allow is empty` warning before config is fully written. This is runtime noise, not a plugin failure.
-
-See [COMPATIBILITY.md](./COMPATIBILITY.md) for the full verified matrix.
+This is a plugin inspection surface, not a replacement UI.

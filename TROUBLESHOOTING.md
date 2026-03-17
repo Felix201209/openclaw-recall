@@ -1,220 +1,97 @@
 # Troubleshooting
 
-## `Plugin not found: openclaw-recall`
+Common issues, known limitations, and how to fix them.
 
-Cause:
+---
 
-- plugin not installed into the active OpenClaw profile/home
-- you are querying a different `OPENCLAW_HOME`
+## Known Limitations
 
-Check:
+These are known release limitations in `1.3.0`, not blockers for normal use.
 
-```bash
-openclaw config file
-openclaw plugins list
-openclaw plugins info openclaw-recall
-```
+- Compression and tool-token savings are partly estimated
+- Provider smoke coverage is strongest on the OpenAI Responses path
+- `openclaw <subcommand>` CLI exposure is upstream-limited; use `openclaw-recall` directly
+- OpenClaw may emit `plugins.allow is empty` warning noise in some install flows — safe to ignore
+- Memory conflict resolution is rule-based (stable preference supersession is supported, but complex conflicts are not yet resolved semantically)
+- `reconnect` mode uses the built-in `recall-http` backend; generic external remote backends are not release-verified
 
-Fix:
+---
 
-```bash
-openclaw plugins install --link /path/to/openclaw-recall
-```
+## Diagnostics
 
-If you are testing a release tarball instead of a source checkout:
+Always start with:
 
 ```bash
-npm install ./felixypz-openclaw-recall-<version>.tgz
-openclaw plugins install --link ./node_modules/@felixypz/openclaw-recall
-```
-
-## `doctor` says no recent hook activity
-
-Cause:
-
-- plugin is installed but no agent run has completed yet
-- plugin entry is disabled
-
-Check:
-
-```bash
+openclaw-recall doctor
 openclaw-recall status
-openclaw-recall config show
 ```
 
-Fix:
+`doctor` checks the plugin health end-to-end. `status` reports memory hygiene state, last prune/reindex/compact timestamps, and recent import stats.
 
-- run a short conversation through OpenClaw
-- verify `plugins.entries.openclaw-recall.enabled` is not `false`
+---
 
-## No memories are being written
+## Memory Issues
 
-Likely causes:
+### Preferences not being recalled across sessions
 
-- `OPENCLAW_RECALL_AUTO_WRITE=false`
-- messages are not passing the write threshold
-- you only ran recall questions, not stable preference/fact turns
+1. Check memory was written: `openclaw-recall memory list`
+2. Check what would be retrieved: `openclaw-recall memory explain "<your query>"`
+3. Look for noisy rows suppressing valid memory: `openclaw-recall status` → check `noisyActiveMemoryCount`
+4. If noisy count is high: `openclaw-recall memory prune-noise --dry-run` then `openclaw-recall memory prune-noise`
 
-Check:
+### Old stale rows polluting recall
 
 ```bash
-openclaw-recall memory list
-openclaw-recall profile list
+openclaw-recall memory prune-noise --dry-run   # preview
+openclaw-recall memory prune-noise             # execute
+openclaw-recall memory reindex
+openclaw-recall memory compact
 ```
 
-Try a clearer seed turn:
+### Memory not surviving after import
 
-```text
-以后默认叫我 Felix，用中文回答，并且尽量简洁。
-```
+Long-form import in `1.3.0` chunks oversized segments. If signal is still lost:
+1. `openclaw-recall import status` — check `rejectedNoise` and `uncertainCandidates` counts
+2. Try re-importing with smaller source files
 
-If you intentionally disabled auto-write, re-enable it:
+---
+
+## Install Issues
+
+### `plugins.allow is empty` warning
+
+Known noise from OpenClaw's plugin CLI in some install and info flows. Does not affect functionality.
+
+### Plugin not recognized after install
 
 ```bash
-unset OPENCLAW_RECALL_AUTO_WRITE
-```
-
-## The assistant is recalling weird metadata or wrapper text
-
-Check:
-
-```bash
-openclaw-recall memory explain "你记得我的偏好吗？"
-openclaw-recall memory inspect <id>
-openclaw-recall memory prune-noise --dry-run
-```
-
-Fix:
-
-```bash
-openclaw-recall memory prune-noise
-```
-
-Current versions reject most metadata/control-plane noise at write time and suppress it again at retrieval time, but older stored rows may still need pruning once.
-
-## I saw internal scaffold or score text in a reply
-
-This should no longer appear on the default chat path. Internal labels such as `TASK STATE`, `RELEVANT MEMORY`, score lines, and `why:` strings are meant for inspect/debug paths only.
-
-If you still see them:
-
-1. upgrade to the latest build of the plugin
-2. rerun the conversation once
-3. inspect the stored rows with `memory inspect`
-4. export `doctor --json` and `status --json` for debugging
-
-## Reconnect mode says identity is incomplete
-
-Cause:
-
-- `identity.mode` is `reconnect` or `cloud`
-- but neither `identityKey` nor `memorySpaceId` is configured
-
-Fix:
-
-```bash
-openclaw-recall config init --mode reconnect --identity-key recall_xxx --memory-space space_xxx --write-openclaw
+openclaw plugins info openclaw-recall
 openclaw-recall config validate
-openclaw-recall backend serve --port 4546 --data-dir .recall-http-backend
 openclaw-recall doctor
 ```
 
-If `doctor` still reports backend reachability problems, confirm that the endpoint, API key, and `memorySpaceId` all point to the same remote backend.
-
-## Import found files but wrote nothing
-
-Likely causes:
-
-- files only contained noisy wrappers or unsupported objects
-- dry-run was used instead of `import run`
-- duplicates merged into existing memory instead of creating new rows
-
-Check:
-
+If `config validate` fails, re-run:
 ```bash
-openclaw-recall import status
-openclaw-recall memory list
+openclaw-recall config init --mode local --write-openclaw
 ```
 
-If the report shows high `rejectedNoise`, inspect the source files before retrying.
+---
 
-If restore state looks correct in `doctor` / `status` / `memory explain` but the reply itself is still weak, check whether the imported records landed in `private` scope for a different user. Stable project context should usually survive as `workspace`, while `private` preferences are intentionally not cross-user.
+## Inspect
 
-## I need a backup before changing machines
+For deeper debugging, use the inspect routes inside OpenClaw:
 
-Run:
+```
+/plugins/openclaw-recall/dashboard
+/plugins/openclaw-recall/status
+/plugins/openclaw-recall/memories
+/plugins/openclaw-recall/sessions/:sessionId
+```
 
+Or via CLI:
 ```bash
-openclaw-recall export memory
-openclaw-recall export profile
-openclaw-recall export session --session <sessionId>
+openclaw-recall memory inspect <id>
+openclaw-recall memory explain "<query>"
+openclaw-recall session inspect <sessionId>
+openclaw-recall profile inspect <runId>
 ```
-
-Keep:
-
-- the export files
-- your identity key
-- your OpenClaw config snippet
-
-## OpenAI-compatible embeddings selected but no key found
-
-Fix one of:
-
-- switch back to `OPENCLAW_RECALL_EMBEDDING_PROVIDER=local`
-- or provide `OPENCLAW_RECALL_EMBEDDING_API_KEY`
-
-## Why do some savings fields still say `estimated`?
-
-Cause:
-
-- prompt token counts can be exact when provider usage is returned
-- savings values still come from heuristic before/after comparisons
-
-This is expected in 1.2.0.
-
-## SQLite appears locked
-
-The plugin uses `busy_timeout` and WAL when available, so brief contention should clear automatically. If you see repeated failures:
-
-- stop overlapping test processes
-- rerun the command
-- if needed, restart the long-running process holding the DB
-
-## Inspect route not available
-
-Check:
-
-```bash
-openclaw-recall config show
-```
-
-Confirm `inspect.httpPath` starts with `/plugins/` and that OpenClaw loaded the plugin.
-
-## `doctor` warns about env/config precedence
-
-Cause:
-
-- one or more `OPENCLAW_RECALL_*` variables override `openclaw.json`
-
-Fix:
-
-- remove the temporary env override
-- or keep it intentionally and document it in your deployment config
-
-Use:
-
-```bash
-openclaw-recall config show
-```
-
-to confirm the resolved precedence chain.
-
-## I want to reset plugin state
-
-Delete:
-
-```text
-$OPENCLAW_HOME/.openclaw/plugins/openclaw-recall/
-```
-
-This only clears plugin-managed memory, profile, and tool state.

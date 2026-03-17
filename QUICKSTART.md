@@ -1,16 +1,12 @@
 # Quickstart
 
-Install OpenClaw Recall, prove the hooks are active, and verify memory, recall, compression, and profile output with the fewest moving parts.
+Get from install to first successful recall in under 10 minutes.
 
-Current stable version: `1.3.0`.
+---
 
-## Prerequisites
+## Install
 
-- Node.js 24+
-- OpenClaw installed and working
-- shell access on the machine that runs OpenClaw
-
-## Fast path from npm
+### From npm
 
 ```bash
 npm install @felixypz/openclaw-recall
@@ -22,13 +18,12 @@ openclaw-recall doctor
 openclaw-recall status
 ```
 
-## Fast path from source
+### From source
 
 ```bash
 git clone https://github.com/Felix201209/openclaw-recall.git
 cd openclaw-recall
-npm install
-npm run build
+npm install && npm run build
 openclaw plugins install --link .
 openclaw-recall config init --mode local --write-openclaw
 openclaw plugins info openclaw-recall
@@ -37,102 +32,76 @@ openclaw-recall doctor
 openclaw-recall status
 ```
 
-## Reconnect instead of local mode
+---
 
-If you already have an identity key or memory space id:
+## Identity Modes
+
+| Mode | When to use |
+|---|---|
+| `local` | Machine-local durable memory only |
+| `reconnect` | Reconnect the same memory space across machines or a fresh OpenClaw home |
 
 ```bash
+# Local
+openclaw-recall config init --mode local
+
+# Reconnect
 openclaw-recall config init --mode reconnect --identity-key recall_xxx --memory-space space_xxx
-openclaw-recall config init --mode reconnect --identity-key recall_xxx --memory-space space_xxx --write-openclaw
+
 openclaw-recall config validate
 ```
 
-Use reconnect mode on a new machine when you want to restore the same logical memory space.
+> **Security:** Identity keys are secrets. Store them in a password manager.
 
-## Common environment overrides
+---
 
-Start from [`.env.example`](./.env.example).
+## Recommended First-Use Workflow
 
-```bash
-OPENCLAW_RECALL_EMBEDDING_PROVIDER=local
-OPENCLAW_RECALL_CONTEXT_BUDGET=2400
-OPENCLAW_RECALL_RECENT_TURNS=6
-OPENCLAW_RECALL_HTTP_PATH=/plugins/openclaw-recall
-OPENCLAW_RECALL_IDENTITY_MODE=local
+1. Install the plugin
+2. Initialize config (`local` or `reconnect`)
+3. `openclaw-recall import dry-run`
+4. `openclaw-recall import run`
+5. Verify with `doctor` · `status` · `memory explain` · `profile inspect`
+
+If you already have transcripts or memory files, importing them is the fastest proof path.
+
+Import behavior in `1.3.0`:
+- Duplicate rows are merged or superseded instead of duplicated
+- `rejectedNoise`, `rejectedSensitive`, and `uncertainCandidates` tracked separately
+- Generic imports no longer silently promote semantic memory into `shared`
+- Exported plugin artifacts preserve their stored scope metadata
+
+---
+
+## 5-Minute Value Check
+
+**1. Write a preference**
+```
+Remember that I like you to call me Felix.
 ```
 
-## Import first
-
-```bash
-openclaw-recall import dry-run
-openclaw-recall import run
-openclaw-recall import status
-openclaw-recall memory prune-noise --dry-run
+**2. Verify recall in a new session**
+```
+Did you remember my preferences?
 ```
 
-This scans common `memories/*.json`, `sessions/*.json`, `*.jsonl`, and local plugin artifacts before you seed a synthetic demo.
-
-## First proof run
-
-```bash
-npm run demo
+**3. Trigger a tool payload**
+```
+read "README.md"
 ```
 
-That demonstrates:
-
-- automatic memory write
-- cross-session recall
-- tool compaction
-- profile recording
-- operator verification after import
-
-## Full smoke path
-
+**4. Inspect results**
 ```bash
-npm run smoke
+openclaw-recall memory list
+openclaw-recall memory explain "Did you remember my preferences?"
+openclaw-recall profile list
+openclaw-recall session inspect <sessionId>
 ```
 
-## Release-grade validation path
+**Success looks like:**
+- Memory rows mentioning `Felix`, `English`, or `Concise`
+- Recall works without replaying the earlier transcript
+- Tool results show `savedTokens > 0`
+- Profile rows show compression evidence
 
-```bash
-npm run verify
-npm run test:remote-roundtrip
-```
-
-That additionally checks:
-
-- tarball contents
-- install from generated tarball
-- OpenClaw plugin load from installed package path
-- installed CLI execution for doctor/status/session inspect
-- built-in `recall-http` backend serve
-- reconnect to the same remote memory space from a clean consumer install
-- import/export restore behavior and restored doctor/status/memory explain output
-- restored natural-language recall quality, not only inspect evidence
-- retrieval-quality, import-quality, operator-visibility, prompt-memory, and compaction benchmarks
-
-## What success looks like
-
-- `openclaw plugins info openclaw-recall` shows `Status: loaded`
-- `openclaw-recall doctor` has no `fail` checks
-- `openclaw-recall status` shows non-zero `memoryCount` and `profileCount` after a demo run
-- `openclaw-recall status` also shows `noisyActiveMemoryCount` and the latest prune/import/export metadata
-- `openclaw-recall import status` shows the last import report
-- a restored install can answer with current project focus or stable preferences after reconnect/import
-- `openclaw-recall profile list --json` shows `promptTokensSource: "exact"` on provider paths that return usage
-- `openclaw-recall memory prune-noise --dry-run` shows what would be deactivated before any stored memory changes
-
-## Backup and recovery
-
-```bash
-openclaw-recall export memory
-openclaw-recall export profile
-openclaw-recall export session --session <sessionId>
-```
-
-Keep the exported files and your identity key. Recovery is:
-
-1. install the plugin on the new machine
-2. configure `local` or `reconnect`
-3. run `import run` against the exported files
-4. verify with `doctor` and `status`
+See [EXAMPLES.md](EXAMPLES.md) for a full copyable walkthrough.

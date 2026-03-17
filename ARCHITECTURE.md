@@ -1,154 +1,97 @@
 # Architecture
 
-## Goal
+Internal design, component overview, and memory quality guardrails for OpenClaw Recall.
 
-Attach a memory, compression, and profiling enhancement layer to OpenClaw without replacing OpenClaw's main product shell.
+---
 
-## Hook points
+## Memory Quality Guardrails
 
-The plugin currently attaches to these OpenClaw lifecycle hooks:
+OpenClaw Recall treats memory quality as a first-class runtime concern. Guardrails operate at both write time and retrieval time.
 
-- `before_prompt_build`
-- `llm_input`
-- `llm_output`
-- `after_tool_call`
-- `tool_result_persist`
-- `before_compaction`
-- `after_compaction`
-- `agent_end`
-- `before_reset`
+### Write-time filters reject:
+- Sender metadata, cron/heartbeat records, control-plane labels
+- Wrapper text, debug annotations, scaffold fragments
+- Low-value emotion-only lines
 
-Implementation entry:
+### Retrieval-time suppression prevents:
+- Old noisy rows dominating recall
+- Stale or superseded rows crowding out current memory
+- Internal wrapper/debug text leaking into normal answers
 
-- [`src/plugin/index.ts`](./src/plugin/index.ts)
-- [`src/plugin/hooks.ts`](./src/plugin/hooks.ts)
+### Stable preference extraction favors:
+`偏直接` · `偏执行导向` · `偏中文` · `偏简洁` · structured reporting preferences
 
-## Memory pipeline
+### Conflict handling supports:
+- Stable preference supersession
+- Common fact updates
+- Reduction of long-term recall pollution from stale rows
 
-```text
-run starts
--> retrieve boot memory + query-aware memory
--> inject memory into prompt build
--> agent completes
--> extract memory candidates from user turn + assistant turn
--> classify into preference / semantic / session_state / episodic
--> importance thresholding
--> dedupe / merge / supersede
--> write memories and session state
-```
+---
 
-Core modules:
+## Retrieval Design
 
-- [`src/memory/MemoryExtractor.ts`](./src/memory/MemoryExtractor.ts)
-- [`src/memory/MemoryStore.ts`](./src/memory/MemoryStore.ts)
-- [`src/memory/MemoryRetriever.ts`](./src/memory/MemoryRetriever.ts)
-- [`src/memory/MemoryRanker.ts`](./src/memory/MemoryRanker.ts)
-- [`src/memory/SessionStateStore.ts`](./src/memory/SessionStateStore.ts)
+Hybrid retrieval uses RRF-style fusion to balance three signal sources:
 
-### Default memory rules
+1. **Stable preferences** — long-lived user preferences that should survive across sessions
+2. **Project context** — current project state and task definitions
+3. **Active task/session context** — what's happening right now
 
-- preferences and stable facts receive long TTL and low decay
-- episodic memory receives short TTL and fast decay
-- session-state records current task, constraints, decisions, and open questions
-- conflicting memories in the same `memoryGroup` are versioned and can supersede older rows
+Additional mechanisms:
+- **Candidate-pool expansion** — widens the initial candidate set before re-ranking
+- **MMR-style diversification** — reduces duplicate preference-heavy results
+- **Retrieval gate** — skips memory work entirely for command-like prompts where recall adds no value
+- **Relation-aware stitching** — reconstructs project/task memory relationships after import or restore
 
-## Compression pipeline
+---
 
-```text
-before_prompt_build
--> load session state
--> retrieve relevant memory
--> compact recent tool output
--> compress older history
--> assemble layered prompt
--> enforce context budget
-```
+## Compaction Design
 
-Core modules:
+Tool output compaction preserves structure that matters:
+- Commands and their outputs
+- Error stacks
+- Code blocks
+- Semi-structured sections (key/value, tables, headers)
 
-- [`src/compression/ContextCompressor.ts`](./src/compression/ContextCompressor.ts)
-- [`src/compression/PromptBuilder.ts`](./src/compression/PromptBuilder.ts)
-- [`src/compression/BudgetManager.ts`](./src/compression/BudgetManager.ts)
-- [`src/compression/ToolOutputCompactor.ts`](./src/compression/ToolOutputCompactor.ts)
-- [`src/compression/ToolOutputStore.ts`](./src/compression/ToolOutputStore.ts)
+Provider-style wrapper payloads are unwrapped before compaction so the compacted result reflects useful text rather than JSON shells.
 
-Prompt layer order is fixed:
+---
 
-1. `SYSTEM`
-2. `TASK STATE`
-3. `RELEVANT MEMORY`
-4. `COMPRESSED TOOL OUTPUT`
-5. `OLDER HISTORY SUMMARY`
-6. `RECENT TURNS`
-7. `CURRENT USER MESSAGE`
+## Import Design
 
-## Profiling pipeline
+Long-form import chunks oversized memories and transcript segments so signal is distributed across retrievable units rather than buried in a single large blob.
 
-Each completed run records:
+Import quality controls:
+- `rejectedNoise` — content filtered as noise
+- `rejectedSensitive` — content filtered for sensitivity
+- `uncertainCandidates` — content flagged for manual review
 
-- prompt size
-- prompt budget
-- memory injected
-- memory candidates and writes
-- tool tokens and tool savings
-- compression savings
-- retrieval count
-- prompt layer details
-- recalled memory reasons
-- compaction events
+Generic imports do not silently promote semantic memory into `shared` scope. Exported plugin artifacts preserve their stored scope metadata on re-import.
 
-Core modules:
+---
 
-- [`src/profiling/TurnProfileStore.ts`](./src/profiling/TurnProfileStore.ts)
-- [`src/profiling/EventStore.ts`](./src/profiling/EventStore.ts)
+## Memory Types
 
-## Storage model
+| Type | TTL | Purpose |
+|---|---|---|
+| `preference` | Long | Stable user preferences (name, language, style) |
+| `semantic` | Medium | Factual and domain knowledge |
+| `episodic` | Short | What happened in recent sessions |
+| `session_state` | Session | Active task and context state |
 
-SQLite tables:
+---
 
-- `turns`
-- `memories`
-- `session_state`
-- `session_metadata`
-- `session_runtime`
-- `tool_outputs`
-- `turn_profiles`
+## Prompt Budget
 
-Storage bootstrap:
+- Default context budget: `2400` tokens
+- Recent-turn window: `6` turns
+- History summarization activates once the turn-count threshold is crossed
+- Budget enforcement is hard — Recall will not exceed the configured budget
 
-- [`src/storage/PluginDatabase.ts`](./src/storage/PluginDatabase.ts)
+---
 
-## Inspect surface
+## Metric Sources
 
-The plugin registers an authenticated HTTP route inside OpenClaw:
-
-- dashboard HTML
-- status JSON
-- memory list/detail/explain
-- profile list/detail
-- session list
-
-Implementation:
-
-- [`src/inspect/http.ts`](./src/inspect/http.ts)
-- [`src/inspect/dashboard.ts`](./src/inspect/dashboard.ts)
-
-## Operator CLI
-
-The plugin ships a standalone operator CLI, not a replacement for `openclaw`:
-
-- `doctor`
-- `status`
-- `memory *`
-- `profile *`
-- `config show`
-
-Implementation:
-
-- [`src/cli/index.ts`](./src/cli/index.ts)
-
-## Non-goals
-
-- Replacing OpenClaw's full CLI/TUI/Web UI
-- Shipping a parallel runtime or gateway
-- Forking OpenClaw's provider stack
+- `promptTokensSource=exact` when provider usage metadata is available
+- `promptTokensSource=estimated` when it is not
+- `compressionSavingsSource=estimated` — heuristic comparison
+- `toolTokensSavedSource=estimated` — heuristic comparison
