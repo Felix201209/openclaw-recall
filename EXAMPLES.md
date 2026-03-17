@@ -5,7 +5,7 @@
 User message:
 
 ```text
-以后默认叫我 Felix，用中文回答，并且尽量简洁。
+From now on, call me Felix by default, reply in Chinese, and keep answers as concise as possible.
 ```
 
 Expected result:
