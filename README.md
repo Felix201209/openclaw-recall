@@ -13,7 +13,7 @@
 
 **Other Language:** [简体中文](https://github.com/Felix201209/openclaw-recall/blob/main/zh-cn.md)
 
-Current stable release: **`1.3.0`** · npm: **`@felixypz/openclaw-recall`**
+Current stable release: **`1.3.1`** · npm: **`@felixypz/openclaw-recall`**
 
 ---
 
