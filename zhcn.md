@@ -12,7 +12,7 @@
 </p>
 [English](https://github.com/Felix201209/openclaw-recall/blob/main/README.md)
 
-当前稳定版本：**`1.3.1`** · npm 包名：**`@felixypz/openclaw-recall`**
+当前稳定版本：**`1.3.0`** · npm 包名：**`@felixypz/openclaw-recall`**
 
 ---
 
@@ -32,7 +32,7 @@ OpenClaw Recall 是一个专为 OpenClaw 设计的记忆基础设施插件。它
 
 ---
 
-## 1.3 更新了什么
+## 1.3.0 更新了什么
 
 本次版本聚焦于**召回质量**和**导入还原度**的提升。
 
@@ -279,7 +279,7 @@ openclaw-recall memory compact                 # 压缩旧记忆
 
 ## 兼容性
 
-`1.3.1` 已验证：
+`1.3.0` 已验证：
 
 - Node.js `24.10.0` 和 `24.12.0`
 - OpenClaw `2026.3.13`

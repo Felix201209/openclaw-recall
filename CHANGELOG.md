@@ -1,11 +1,5 @@
 # Changelog
 
-## 1.3.1
-
-- improved `.gitignore` to exclude tarball artifacts
-- added v1.4 semantic supersede design document for future development planning
-- minor documentation updates
-
 ## 1.3.0
 
 - added RRF-style hybrid fusion so preference, project-context, and session/task memories are less likely to collapse into duplicate-heavy recall
