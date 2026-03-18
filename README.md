@@ -33,9 +33,16 @@ OpenClaw Recall is a memory infrastructure plugin for OpenClaw. It solves the pr
 
 ---
 
-## What's New in 1.3.0
+## What's New in 1.3.1
 
-This release focuses on retrieval quality and import fidelity.
+**Latest (v1.3.1):**
+- Improved `.gitignore` to exclude build artifacts
+- Added v1.4 semantic supersede design document
+- Documentation updates and refinements
+
+**Major features (v1.3.0):**
+
+This release focused on retrieval quality and import fidelity.
 
 **Retrieval improvements**
 - Hybrid retrieval now uses RRF-style fusion so stable preferences, project context, and active task context survive together
