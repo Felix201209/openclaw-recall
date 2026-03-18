@@ -1,5 +1,17 @@
 # Release Notes
 
+## OpenClaw Recall v1.3.1
+
+`1.3.1` is a patch release with minor improvements:
+
+- improved `.gitignore` to exclude tarball artifacts
+- added v1.4 semantic supersede design document for future development planning
+- minor documentation updates
+
+All features and compatibility from v1.3.0 remain unchanged.
+
+---
+
 ## OpenClaw Recall v1.3.0
 
 `1.3.0` is a real minor release because it materially improves Recall's hybrid retrieval composition and long-form import quality while keeping the project memory-first. The focus is still practical: better mixed recall, denser `RELEVANT MEMORY`, better preservation of useful imported project signal, and stronger token efficiency without weakening hygiene or output safety.
